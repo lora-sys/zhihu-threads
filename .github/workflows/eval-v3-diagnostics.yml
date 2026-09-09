@@ -1,0 +1,54 @@
+name: Eval v3 diagnostics
+
+on:
+  pull_request:
+    paths:
+      - "src/evals/v3/**"
+      - "scripts/eval-*"
+      - "docs/eval-v3*"
+      - ".github/workflows/eval-v3-diagnostics.yml"
+      - "package.json"
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: voidzero-dev/setup-vp@313600b80b104eadebb9111787d37a2e83e014ca
+        with:
+          node-version: "24"
+          cache: true
+      - run: vp install --frozen-lockfile
+      - name: Format diagnostic copy
+        id: format
+        run: vp check --fix
+      - name: Offline contracts
+        if: always() && steps.format.outcome != 'skipped'
+        run: pnpm eval:offline
+      - name: Full test suite
+        if: always() && steps.format.outcome != 'skipped'
+        run: vp test
+      - name: Production build
+        if: always() && steps.format.outcome != 'skipped'
+        run: vp build
+      - name: Collect repair patch
+        if: always()
+        run: |
+          mkdir -p /tmp/eval-v3-diagnostics/formatted
+          git diff --binary > /tmp/eval-v3-diagnostics/format.patch
+          git rev-parse HEAD > /tmp/eval-v3-diagnostics/checkout-sha.txt
+          git diff --name-only -z | while IFS= read -r -d '' file; do
+            mkdir -p "/tmp/eval-v3-diagnostics/formatted/$(dirname "$file")"
+            cp "$file" "/tmp/eval-v3-diagnostics/formatted/$file"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-v3-diagnostics
+          path: /tmp/eval-v3-diagnostics/
+          retention-days: 3

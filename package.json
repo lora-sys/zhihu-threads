@@ -10,7 +10,9 @@
     "generate-routes": "tsr generate",
     "build": "vp build",
     "preview": "vp preview",
-    "eval": "EVAL_COMMAND=run vp exec vitest run src/evals/eval-harness.test.ts"
+    "eval": "EVAL_V3_COMMAND=run vp exec vitest run src/evals/v3/live.test.ts",
+    "eval:legacy": "EVAL_COMMAND=run vp exec vitest run src/evals/eval-harness.test.ts",
+    "eval:offline": "node --unhandled-rejections=strict --experimental-strip-types src/evals/v3/offline.ts"
   },
   "dependencies": {
     "@tanstack/react-router": "latest",

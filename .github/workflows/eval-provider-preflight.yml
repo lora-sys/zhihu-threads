@@ -1,0 +1,32 @@
+name: Eval provider preflight
+
+on:
+  push:
+    branches:
+      - feat/eval-v3-offline-agent-harness
+    paths:
+      - ".github/workflows/eval-provider-preflight.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    if: github.repository == 'lora-sys/zhihu-threads'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Report configuration presence only
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL || secrets.OPENAI_BASE_URL }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL || secrets.OPENAI_MODEL }}
+          ZHIHU_ACCESS_SECRET: ${{ secrets.ZHIHU_ACCESS_SECRET }}
+          EVAL_JUDGE_MODEL: ${{ vars.EVAL_JUDGE_MODEL || secrets.EVAL_JUDGE_MODEL }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          names = ['OPENAI_API_KEY', 'OPENAI_BASE_URL', 'OPENAI_MODEL', 'ZHIHU_ACCESS_SECRET', 'EVAL_JUDGE_MODEL']
+          print(json.dumps({'configuration_present': {name: bool(os.environ.get(name, '').strip()) for name in names}, 'semantic_quality': 'not_evaluated', 'provider_requests': 0}))
+          PY

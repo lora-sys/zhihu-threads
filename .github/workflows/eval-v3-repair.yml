@@ -1,0 +1,82 @@
+name: Eval v3 scoped repair
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/eval-v3-repair.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  repair:
+    if: github.repository == 'lora-sys/zhihu-threads' && github.event.pull_request.number == 64 && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feat/eval-v3-offline-agent-harness'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - uses: voidzero-dev/setup-vp@313600b80b104eadebb9111787d37a2e83e014ca
+        with:
+          node-version: "24"
+          cache: true
+      - run: vp install --frozen-lockfile
+      - name: Apply reviewed source fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          changes = {
+            'src/evals/v3/product-runtime.ts': [
+              ('import { createAnswerExcerpt }', 'import { createAnswerExcerpt, type AnswerExcerpt }'),
+              ('const snapshots = [];', 'const snapshots: AnswerExcerpt[] = [];'),
+            ],
+            'src/evals/v3/runner.ts': [
+              ('const cell = (value: unknown)', 'const cell = (value: string | number | boolean | null | undefined)'),
+            ],
+            'src/evals/v3/live.ts': [
+              ('hash(tasks.map(task => [task.id, hash(task)]).sort())', 'hash(tasks.map(task => [task.id, hash(task)]).sort((a, b) => a[0].localeCompare(b[0])))'),
+            ],
+            'src/evals/v3/product.integration.test.ts': [
+              ('new URL(String(url))', 'new URL(url instanceof Request ? url.url : url instanceof URL ? url.href : url)'),
+              ('JSON.parse(String(init?.body))', 'JSON.parse(typeof init?.body === "string" ? init.body : "")'),
+            ],
+            '.github/workflows/eval-v3-diagnostics.yml': [
+              ('run: pnpm eval:offline', 'run: node --unhandled-rejections=strict --experimental-strip-types src/evals/v3/offline.ts'),
+            ],
+          }
+          for name, edits in changes.items():
+              path = Path(name)
+              data = path.read_text()
+              for old, new in edits:
+                  if new in data:
+                      continue
+                  if data.count(old) != 1:
+                      raise SystemExit('Patch context mismatch: ' + name)
+                  data = data.replace(old, new)
+              path.write_text(data)
+          PY
+      - run: vp check --fix
+      - run: node --unhandled-rejections=strict --experimental-strip-types src/evals/v3/offline.ts
+      - run: vp test
+      - run: vp build
+      - name: Commit only reviewed repair scope
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git add -- src/evals/v3 scripts/eval-extract-fixed.mjs scripts/eval-v3-offline-check.mjs docs/eval-v3.md docs/eval-v3-verification.md .github/workflows/eval-v3-diagnostics.yml
+          if ! git diff --quiet; then
+            echo 'Unexpected changes outside the reviewed repair scope' >&2
+            exit 1
+          fi
+          if git diff --cached --quiet; then
+            echo 'No repair commit needed'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(eval): type-safe fixtures and reporting; apply project formatting'
+          git push origin HEAD:refs/heads/feat/eval-v3-offline-agent-harness

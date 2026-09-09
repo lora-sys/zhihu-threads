@@ -2,10 +2,7 @@
   "source": "https://raw.githubusercontent.com/lora-sys/loraSys/860950b256c72c32864cd2f247c2f2d8cffd1935/src/assets/projects/",
   "style": "Lora Field Notes",
   "method": "Localized compositions using the existing original Lora and Mochi assets. Illustrations, not product screenshots.",
-  "dimensions": [
-    1600,
-    900
-  ],
+  "dimensions": [1600, 900],
   "sha256": {
     "lora-v3-project-zhihu-threads-zh.webp": "005d49a036e3b9900a916aea1d6824a7a62ffa19b98297506dc7dad3a96be30b",
     "lora-v3-project-zhihu-threads-en.webp": "129e397fd6fa44b282e847542467dfead9ee7f02fee088b0b81a252394ac109c",

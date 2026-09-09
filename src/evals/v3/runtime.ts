@@ -1,10 +1,15 @@
 import type { Call, Phase, Runtime, Totals, Usage } from "./types.ts";
 export class EvalError extends Error {
   code: string;
-  constructor(code: string) { super(code); this.code = code; }
+  constructor(code: string) {
+    super(code);
+    this.code = code;
+  }
 }
-export const errorCode = (error: unknown, fallback: string): string => error instanceof EvalError ? error.code : fallback;
-export const abortReason = (signal: AbortSignal): EvalError => signal.reason instanceof EvalError ? signal.reason : new EvalError("DEADLINE_EXCEEDED");
+export const errorCode = (error: unknown, fallback: string): string =>
+  error instanceof EvalError ? error.code : fallback;
+export const abortReason = (signal: AbortSignal): EvalError =>
+  signal.reason instanceof EvalError ? signal.reason : new EvalError("DEADLINE_EXCEEDED");
 /** Observes late rejection even if the supplied operation was already started. */
 export const bounded = <T>(operation: Promise<T>, signal: AbortSignal): Promise<T> => {
   if (signal.aborted) {
@@ -14,7 +19,16 @@ export const bounded = <T>(operation: Promise<T>, signal: AbortSignal): Promise<
   return new Promise<T>((resolve, reject) => {
     const cancel = () => reject(abortReason(signal));
     signal.addEventListener("abort", cancel, { once: true });
-    operation.then((value) => { signal.removeEventListener("abort", cancel); resolve(value); }, (error) => { signal.removeEventListener("abort", cancel); reject(error); });
+    operation.then(
+      (value) => {
+        signal.removeEventListener("abort", cancel);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener("abort", cancel);
+        reject(error);
+      },
+    );
   });
 };
 export const deadline = (ms: number) => {
@@ -24,8 +38,7 @@ export const deadline = (ms: number) => {
 };
 export const integer = (value: unknown, fallback: number, min = 1, max = 1000000): number => {
   const n = value === undefined ? fallback : Number(value);
-  if (!Number.isSafeInteger(n) || n < min || n > max)
-    throw new EvalError("INVALID_BUDGET");
+  if (!Number.isSafeInteger(n) || n < min || n > max) throw new EvalError("INVALID_BUDGET");
   return n;
 };
 export const createLedger = (limit: number, now = () => performance.now()) => {
@@ -36,29 +49,34 @@ export const createLedger = (limit: number, now = () => performance.now()) => {
   const runtime = (signal: AbortSignal): Runtime => ({
     signal,
     beginCall: (phase, provider, provenance) => {
-      if (closed)
-        throw new EvalError("LEDGER_CLOSED");
-      if (signal.aborted)
-        throw abortReason(signal);
+      if (closed) throw new EvalError("LEDGER_CLOSED");
+      if (signal.aborted) throw abortReason(signal);
       if (calls.length >= limit) {
         denied = true;
         throw new EvalError("CALL_BUDGET_EXCEEDED");
       }
-      const call: Call = { id: calls.length, phase, provider, provenance, status: "pending", durationMs: 0,
-        inputTokens: null, outputTokens: null, costUsd: null };
+      const call: Call = {
+        id: calls.length,
+        phase,
+        provider,
+        provenance,
+        status: "pending",
+        durationMs: 0,
+        inputTokens: null,
+        outputTokens: null,
+        costUsd: null,
+      };
       calls.push(call);
       starts.set(call.id, now());
       const cancel = () => {
-        if (call.status !== "pending")
-          return;
+        if (call.status !== "pending") return;
         call.status = "aborted";
         call.durationMs = now() - starts.get(call.id)!;
       };
       signal.addEventListener("abort", cancel, { once: true });
       return ({ status, usage = {}, httpStatus }) => {
         signal.removeEventListener("abort", cancel);
-        if (closed || call.status !== "pending")
-          return;
+        if (closed || call.status !== "pending") return;
         call.status = status;
         call.durationMs = now() - starts.get(call.id)!;
         call.httpStatus = httpStatus;
@@ -91,12 +109,17 @@ export const totals = (calls: Call[]): Totals => {
   const knownOutputTokens = sum(models.map((call) => call.outputTokens));
   const knownCostUsd = sum(calls.map((call) => call.costUsd));
   return {
-    calls: calls.length, knownInputTokens, knownOutputTokens,
+    calls: calls.length,
+    knownInputTokens,
+    knownOutputTokens,
     inputTokens: models.some((call) => call.inputTokens === null) ? null : knownInputTokens,
     outputTokens: models.some((call) => call.outputTokens === null) ? null : knownOutputTokens,
-    unknownTokenCalls: models.filter((call) => call.inputTokens === null || call.outputTokens === null).length,
+    unknownTokenCalls: models.filter(
+      (call) => call.inputTokens === null || call.outputTokens === null,
+    ).length,
     costUsd: calls.some((call) => call.costUsd === null) ? null : knownCostUsd,
-    knownCostUsd, unknownCostCalls: calls.filter((call) => call.costUsd === null).length,
+    knownCostUsd,
+    unknownCostCalls: calls.filter((call) => call.costUsd === null).length,
     providerDurationMs: sum(calls.map((call) => call.durationMs)),
   };
 };

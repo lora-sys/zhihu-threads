@@ -155,11 +155,11 @@ export interface Totals {
 }
 export interface Runtime {
   signal: AbortSignal;
-  beginCall: (phase: Phase, provider: Call["provider"], provenance: Call["provenance"]) => (result: {
-    status: "ok" | "error";
-    usage?: Partial<Usage>;
-    httpStatus?: number;
-  }) => void;
+  beginCall: (
+    phase: Phase,
+    provider: Call["provider"],
+    provenance: Call["provenance"],
+  ) => (result: { status: "ok" | "error"; usage?: Partial<Usage>; httpStatus?: number }) => void;
 }
 export interface View {
   input: Input;

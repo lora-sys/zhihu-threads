@@ -1,0 +1,86 @@
+name: Review bilingual README visuals
+on:
+  push:
+    branches: [audit/readme-visuals-20260909]
+    paths: [.github/workflows/review-readme-visuals.yml]
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 52888dca799a50c97eeb6a8a8e8e41d006f3003
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated renderer
+        run: |
+          python -m pip install markdown==3.8.2
+          npm install --prefix "$RUNNER_TEMP/readme-tools" --no-save --package-lock=false playwright@1.58.2
+          node "$RUNNER_TEMP/readme-tools/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Validate diff and prepare local README preview
+        shell: python
+        env:
+          OUT: ${{ runner.temp }}/readme-evidence
+        run: |
+          from pathlib import Path
+          import hashlib,json,os,re,shutil,subprocess,markdown
+          changed=subprocess.check_output(['git','diff','--name-only','6c34a81e750b418620c0bb5be148427fd1f68d80','HEAD'],text=True).splitlines()
+          assert all(p in ['README.md','README.en.md'] or p.startswith('assets/readme/') for p in changed),changed
+          manifest=json.loads(Path('assets/readme/visuals.json').read_text())
+          for name,digest in manifest['sha256'].items():
+              data=(Path('assets/readme')/name).read_bytes()
+              assert hashlib.sha256(data).hexdigest()==digest and data[8:12]==b'WEBP' and len(data)<180000,name
+          out=Path(os.environ['OUT']);out.mkdir(parents=True,exist_ok=True)
+          shutil.copytree('assets',out/'assets',dirs_exist_ok=True)
+          style='body{margin:0;padding:24px;font:16px/1.65 system-ui,sans-serif;color:#262626;background:#fff}article{max-width:960px;margin:auto}img{max-width:100%;height:auto}pre{overflow:auto;background:#f6f8fa;padding:16px;border-radius:8px}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:8px}a{color:#0969da}h1,h2{line-height:1.3}*{box-sizing:border-box}'
+          for source,lang in [('README.md','zh-CN'),('README.en.md','en-US')]:
+              text=Path(source).read_text()
+              for target in re.findall(r'(?:src="|\]\()(\./[^"\)]+)',text):assert Path(target).exists(),target
+              body=markdown.markdown(text,extensions=['tables','fenced_code'])
+              for before,after in [('README.en.md','readme-en.html'),('README.md','readme-zh.html')]:body=body.replace(before,after)
+              name='readme-en.html' if lang=='en-US' else 'readme-zh.html'
+              (out/name).write_text(f'<!doctype html><html lang="{lang}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Zhihu Threads README</title><style>{style}</style><article>{body}</article></html>')
+          (out/'validation.json').write_text(json.dumps({'revision':'52888dca799a50c97eeb6a8a8e8e41d006f3003','documentationOnly':True,'changedFiles':changed,'artwork':manifest['sha256']},indent=2))
+      - name: Browser rendering at desktop and phone sizes
+        env:
+          OUT: ${{ runner.temp }}/readme-evidence
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/readme-tools/node_modules/playwright/index.mjs
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 --directory "$OUT" > "$RUNNER_TEMP/readme-server.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID"' EXIT
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs/promises';
+          import path from 'node:path';
+          import {pathToFileURL} from 'node:url';
+          const {chromium}=await import(pathToFileURL(process.env.PLAYWRIGHT_MODULE));
+          const browser=await chromium.launch({channel:'chromium'});
+          const checks=[];
+          try {
+            for(const width of [1440,390]) for(const language of ['zh','en']) {
+              const page=await browser.newPage({viewport:{width,height:1000}});
+              await page.goto(`http://127.0.0.1:8765/readme-${language}.html`,{waitUntil:'load'});
+              const images=page.locator('article img');
+              assert.ok(await images.count()>=2);
+              assert.equal(await images.evaluateAll(images=>images.filter(i=>!i.complete||i.naturalWidth===0).length),0);
+              assert.equal(await page.locator('h1').count(),1);
+              await page.screenshot({path:path.join(process.env.OUT,`${width}-${language}-readme.png`),fullPage:true});
+              checks.push({width,language,images:await images.count(),passed:true});
+              await page.close();
+            }
+          } finally {await browser.close()}
+          await fs.writeFile(path.join(process.env.OUT,'browser.json'),JSON.stringify(checks,null,2));
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: readme-visual-review
+          path: ${{ runner.temp }}/readme-evidence
+          retention-days: 14

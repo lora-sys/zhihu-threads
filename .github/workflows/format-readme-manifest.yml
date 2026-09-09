@@ -1,0 +1,43 @@
+name: Format reviewed visual manifest
+on:
+  push:
+    branches: [audit/readme-visuals-20260909]
+    paths: [.github/workflows/format-readme-manifest.yml]
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 461a130fd00b24551648775757c55df2f84722a7
+          persist-credentials: false
+      - uses: voidzero-dev/setup-vp@313600b80b104eadebb9111787d37a2e83e014ca
+        with:
+          node-version: '24'
+      - name: Format only the asset manifest and preserve its data
+        run: |
+          vp install --frozen-lockfile
+          cp assets/readme/visuals.json "$RUNNER_TEMP/visuals-before.json"
+          vp fmt assets/readme/visuals.json --write
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          assert json.loads(Path('assets/readme/visuals.json').read_text()) == json.loads((Path(os.environ['RUNNER_TEMP']) / 'visuals-before.json').read_text())
+          changed = subprocess.check_output(['git','diff','--name-only'],text=True).splitlines()
+          assert changed == ['assets/readme/visuals.json'], changed
+          PY
+          vp check
+      - name: Stage formatting without changing application code or main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git switch -c stage/readme-format-20260909
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/readme/visuals.json
+          git commit -m 'style(docs): format visual asset manifest without changing metadata'
+          AUTH=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $AUTH" push origin HEAD:refs/heads/stage/readme-format-20260909

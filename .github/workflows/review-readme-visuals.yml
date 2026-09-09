@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 52888dca799a50c97eeb6a8a8e8e41d006f3003
+          ref: 461a130fd00b24551648775757c55df2f84722a7
           fetch-depth: 2
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -46,7 +46,7 @@ jobs:
               for before,after in [('README.en.md','readme-en.html'),('README.md','readme-zh.html')]:body=body.replace(before,after)
               name='readme-en.html' if lang=='en-US' else 'readme-zh.html'
               (out/name).write_text(f'<!doctype html><html lang="{lang}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Zhihu Threads README</title><style>{style}</style><article>{body}</article></html>')
-          (out/'validation.json').write_text(json.dumps({'revision':'52888dca799a50c97eeb6a8a8e8e41d006f3003','documentationOnly':True,'changedFiles':changed,'artwork':manifest['sha256']},indent=2))
+          (out/'validation.json').write_text(json.dumps({'revision':'461a130fd00b24551648775757c55df2f84722a7','documentationOnly':True,'changedFiles':changed,'artwork':manifest['sha256']},indent=2))
       - name: Browser rendering at desktop and phone sizes
         env:
           OUT: ${{ runner.temp }}/readme-evidence

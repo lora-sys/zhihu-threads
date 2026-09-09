@@ -1,12 +1,18 @@
 <p align="center">
-  <img src="./assets/readme/hero.png" width="100%" alt="Zhihu Threads — 用 AI 把模糊问题变成知乎证据学习线">
+  <img src="./assets/readme/lora-v3-project-zhihu-threads-zh.webp" width="100%" alt="Zhihu Threads 项目插画。由用户选择知乎摘录，AI 组织学习线。">
 </p>
 
 # Zhihu Threads
 
+[English](./README.en.md)
+
+封面与流程图沿用 Lora Field Notes 的原创角色和纸张视觉。它们是功能示意，不是产品截图。
+
 输入一个模糊问题，AI 从真实知乎回答和专栏文章中串联证据，组织成可追溯、可追问、可自测的学习线。它不替代知乎——它把知乎的知识变成更易学的结构。
 
 ## 工作方式
+
+![来源由用户选择，再生成学习线](./assets/readme/lora-v3-zhihu-workflow-zh.webp)
 
 ```
 问题 → 澄清 → 搜索 → 选证据 → AI 串联 → 学习线 → 追问 → 收藏导出

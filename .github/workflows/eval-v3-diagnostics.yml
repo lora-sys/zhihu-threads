@@ -29,7 +29,7 @@ jobs:
         run: vp check --fix
       - name: Offline contracts
         if: always() && steps.format.outcome != 'skipped'
-        run: pnpm eval:offline
+        run: node --unhandled-rejections=strict --experimental-strip-types src/evals/v3/offline.ts
       - name: Full test suite
         if: always() && steps.format.outcome != 'skipped'
         run: vp test

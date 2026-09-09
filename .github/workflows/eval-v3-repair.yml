@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: eval-v3-scoped-repair
+  cancel-in-progress: true
+
 jobs:
   repair:
     if: github.repository == 'lora-sys/zhihu-threads' && github.event.pull_request.number == 64 && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feat/eval-v3-offline-agent-harness'
@@ -18,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: voidzero-dev/setup-vp@313600b80b104eadebb9111787d37a2e83e014ca
         with:
           node-version: "24"
@@ -43,9 +47,6 @@ jobs:
               ('new URL(String(url))', 'new URL(url instanceof Request ? url.url : url instanceof URL ? url.href : url)'),
               ('JSON.parse(String(init?.body))', 'JSON.parse(typeof init?.body === "string" ? init.body : "")'),
             ],
-            '.github/workflows/eval-v3-diagnostics.yml': [
-              ('run: pnpm eval:offline', 'run: node --unhandled-rejections=strict --experimental-strip-types src/evals/v3/offline.ts'),
-            ],
           }
           for name, edits in changes.items():
               path = Path(name)
@@ -62,12 +63,12 @@ jobs:
       - run: node --unhandled-rejections=strict --experimental-strip-types src/evals/v3/offline.ts
       - run: vp test
       - run: vp build
-      - name: Commit only reviewed repair scope
+      - name: Commit only reviewed source repair scope
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          git add -- src/evals/v3 scripts/eval-extract-fixed.mjs scripts/eval-v3-offline-check.mjs docs/eval-v3.md docs/eval-v3-verification.md .github/workflows/eval-v3-diagnostics.yml
+          git add -- src/evals/v3 scripts/eval-extract-fixed.mjs scripts/eval-v3-offline-check.mjs docs/eval-v3.md docs/eval-v3-verification.md
           if ! git diff --quiet; then
             echo 'Unexpected changes outside the reviewed repair scope' >&2
             exit 1

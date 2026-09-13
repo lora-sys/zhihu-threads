@@ -57,7 +57,7 @@ pnpm exec vp build
 
 规则为 `pass` 且没有裁判时，最终判定为 `unjudged`。裁判超时为 `unavailable`，格式或输出单元列表不完整为 `invalid`。这些状态不会自动成为语义成功。代码硬检查失败时，裁判不能将结果改成通过。
 
-`unsupportedRate` 是已评判输出单元中不受支持的比例，不是逐条事实的总体幻觉率。`taskComplete` 单独保存。没有语义评判时，两者均为未知。实际学习收益仍需观察用户完成任务。
+`unsupportedRate` 是已评判的**知识论断**中不受支持的比例，不是逐条事实的总体幻觉率。`kind` 为 `guidance` 的单元（候选解释、流程说明一类）不是知识论断：裁判对它们返回 `supported: null`，它们不进入 `unsupportedRate`，也不会单独把判定压成 fail 或 unjudged；它们的相关性仍可作为任务完成判断的上下文。`claim` 与 `boundary` 单元照旧参与判定。`taskComplete` 单独保存。没有语义评判时，两者均为未知。实际学习收益仍需观察用户完成任务。
 
 ## 执行与评分隔离
 

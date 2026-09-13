@@ -333,7 +333,15 @@ export const grade = async (
   }
   result.semantics = "evaluated";
   result.assessment = assessment;
-  const evaluated = assessment.units.filter((unit) => unit.supported !== null);
+  // Guidance units explain process or candidate selection; they are not
+  // knowledge claims, so they neither gate the verdict nor dilute the
+  // unsupported-content rate. Claim and boundary units keep gating.
+  const kindById = new Map(result.units.map((unit) => [unit.id, unit.kind]));
+  const supportBearing = (id: string): boolean => kindById.get(id) !== "guidance";
+
+  const evaluated = assessment.units.filter(
+    (unit) => supportBearing(unit.id) && unit.supported !== null,
+  );
   const unsupported = evaluated.filter((unit) => unit.supported === false);
   result.metrics.assessedUnits = evaluated.length;
   result.metrics.unsupportedUnits = unsupported.length;
@@ -341,10 +349,14 @@ export const grade = async (
   result.metrics.taskComplete = assessment.taskComplete;
   const failed =
     assessment.taskComplete === false ||
-    assessment.units.some((unit) => unit.supported === false || unit.relevant === false);
+    assessment.units.some(
+      (unit) => supportBearing(unit.id) && (unit.supported === false || unit.relevant === false),
+    );
   const unknown =
     assessment.taskComplete === null ||
-    assessment.units.some((unit) => unit.supported === null || unit.relevant === null);
+    assessment.units.some(
+      (unit) => supportBearing(unit.id) && (unit.supported === null || unit.relevant === null),
+    );
   result.verdict = result.rules === "fail" || failed ? "fail" : unknown ? "unjudged" : "pass";
   return result;
 };

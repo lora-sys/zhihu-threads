@@ -171,6 +171,39 @@ test("earlier unsupported answer fails the whole semantic grade", async () => {
   assert.equal(g.verdict, "fail");
   assert.equal(g.metrics.unsupportedUnits, 1);
 });
+test("candidate guidance is never weighed as an unsupported claim", async () => {
+  const t = taskOf();
+  const x = await exec(t);
+  const step = x.steps[0]!;
+  step.observation.units = [
+    ...(step.observation.units ?? []),
+    {
+      id: "synthetic-guidance",
+      text: "该候选围绕前置知识展开，与当前学习主题关联度较低",
+      kind: "guidance",
+      citations: [],
+    },
+  ];
+
+  const g = await grade(
+    t,
+    x,
+    async (input) => ({
+      taskComplete: true,
+      reason: "fixture",
+      units: input.units.map((unit) => ({
+        id: unit.id,
+        supported: unit.kind === "guidance" ? false : true,
+        relevant: unit.kind === "guidance" ? false : true,
+      })),
+    }),
+    context(),
+  );
+
+  assert.equal(g.rules, "pass");
+  assert.equal(g.metrics.unsupportedUnits, 0);
+  assert.equal(g.verdict, "pass");
+});
 test("later evidence cannot justify earlier quotes", async () => {
   const t = taskOf();
   const x = await exec(t);

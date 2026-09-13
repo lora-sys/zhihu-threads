@@ -9,7 +9,7 @@ import {
   readCollectedThreadSummaries,
   type CollectedThreadSummary,
 } from "../lib/thread-collection";
-import { listMyThreadsFn } from "../server/user-threads";
+import { listMyThreadsFn, syncMyThreadsFn } from "../server/user-threads";
 import { mergeWorkspaceThreads } from "../lib/workspace-threads";
 import {
   searchAnswerCandidates,
@@ -112,6 +112,7 @@ function QuestionThreadEntry() {
   const boundGenerate = useServerFn(generateThreadArtifactFn);
   const boundRank = useServerFn(rankAnswerCandidatesFn);
   const boundListMyThreads = useServerFn(listMyThreadsFn);
+  const boundSyncMyThreads = useServerFn(syncMyThreadsFn);
 
   // Input state
   const [questionText, setQuestionText] = useState("");
@@ -160,6 +161,18 @@ function QuestionThreadEntry() {
           unavailable: result.unavailable === true,
           threads: result.threads,
         });
+
+        // Bring a signed-out visitor's own collection into the account once, so
+        // the workspace promise holds for threads saved before login.
+        if (result.unavailable !== true && typeof window !== "undefined") {
+          const accountIds = new Set(result.threads.map((thread) => thread.threadId));
+          const pending = readCollectedThreadSummaries(window.localStorage).filter(
+            (thread) => !accountIds.has(thread.threadId),
+          );
+          if (pending.length > 0) {
+            void boundSyncMyThreads({ data: { summaries: pending } }).catch(() => undefined);
+          }
+        }
       })
       .catch(() => {
         if (active) {
@@ -170,7 +183,7 @@ function QuestionThreadEntry() {
     return () => {
       active = false;
     };
-  }, [boundListMyThreads]);
+  }, [boundListMyThreads, boundSyncMyThreads]);
 
   const workspaceThreads = accountWorkspace.authenticated
     ? mergeWorkspaceThreads(collectedThreads, accountWorkspace.threads)

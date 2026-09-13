@@ -36,6 +36,13 @@ export type CollectionWriteResponse =
   | { readonly changed: true }
   | { readonly changed: false; readonly reason: CollectionWriteReason };
 
+export type SyncMyThreadsResponse =
+  | { readonly synced: true; readonly count: number }
+  | { readonly synced: false; readonly reason: CollectionWriteReason };
+
+/** Bound for one browser-to-account sync, so a stale cache cannot flood the store. */
+const MAX_SYNC_SUMMARIES = 50;
+
 // ── Input parsing ───────────────────────────────────────────────────────────
 
 const parseSummary = (input: unknown): CollectedThreadSummary | null => {
@@ -49,6 +56,19 @@ const parseThreadId = (input: unknown): string | null => {
   const threadId = (input as { threadId?: unknown }).threadId;
   if (typeof threadId !== "string" || !/^[0-9a-f]{16}$/.test(threadId)) return null;
   return threadId;
+};
+
+/**
+ * Read the summaries a browser offers for migration.
+ *
+ * Entries that no longer satisfy the shared validator are skipped rather than
+ * failing the whole batch: a stale local cache must not block the rest.
+ */
+const parseSummaries = (input: unknown): readonly CollectedThreadSummary[] | null => {
+  if (typeof input !== "object" || input === null) return null;
+  const summaries = (input as { summaries?: unknown }).summaries;
+  if (!Array.isArray(summaries) || summaries.length > MAX_SYNC_SUMMARIES) return null;
+  return summaries.filter(isValidCollectedThreadSummary);
 };
 
 // ── Handlers ────────────────────────────────────────────────────────────────
@@ -109,6 +129,33 @@ export const createRemoveMyThreadHandler =
     }
   };
 
+/**
+ * Move a signed-out visitor's local collection into their account.
+ *
+ * Called once per visit with only the entries the account does not already
+ * hold, so it never overwrites the account copy of a thread.
+ */
+export const createSyncMyThreadsHandler =
+  (deps: UserThreadsDeps) =>
+  async (input: unknown): Promise<SyncMyThreadsResponse> => {
+    const userId = await deps.readViewerId();
+    if (userId === null) return { synced: false, reason: "NOT_AUTHENTICATED" };
+
+    const summaries = parseSummaries(input);
+    if (summaries === null) return { synced: false, reason: "INVALID_REQUEST" };
+    if (summaries.length === 0) return { synced: true, count: 0 };
+
+    try {
+      const store = await deps.createStore();
+      for (const summary of summaries) {
+        await Effect.runPromise(store.save(userId, summary));
+      }
+      return { synced: true, count: summaries.length };
+    } catch {
+      return { synced: false, reason: "STORE_FAILED" };
+    }
+  };
+
 // ── Production wiring ───────────────────────────────────────────────────────
 
 let storeInstance: Promise<UserThreadStore> | null = null;
@@ -139,3 +186,7 @@ export const saveMyThreadFn = createServerFn({ method: "POST" })
 export const removeMyThreadFn = createServerFn({ method: "POST" })
   .validator((input: unknown) => input)
   .handler(({ data }) => createRemoveMyThreadHandler(deps)(data));
+
+export const syncMyThreadsFn = createServerFn({ method: "POST" })
+  .validator((input: unknown) => input)
+  .handler(({ data }) => createSyncMyThreadsHandler(deps)(data));

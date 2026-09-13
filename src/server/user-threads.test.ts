@@ -7,6 +7,7 @@ import {
   createListMyThreadsHandler,
   createRemoveMyThreadHandler,
   createSaveMyThreadHandler,
+  createSyncMyThreadsHandler,
   type UserThreadsDeps,
 } from "./user-threads";
 
@@ -197,5 +198,86 @@ describe("removeMyThread", () => {
     });
 
     expect(result).toEqual({ changed: false, reason: "STORE_FAILED" });
+  });
+});
+
+// ── Migrating a signed-out collection ───────────────────────────────────────
+
+describe("syncMyThreads", () => {
+  it("refuses to migrate without a signed-in user", async () => {
+    const recorder = makeStoreRecorder();
+    const deps = makeDeps(null, recorder);
+    const result = await createSyncMyThreadsHandler(deps)({ summaries: [makeSummary()] });
+
+    expect(result).toEqual({ synced: false, reason: "NOT_AUTHENTICATED" });
+    expect(deps.storeCalls()).toBe(0);
+    expect(recorder.saved).toEqual([]);
+  });
+
+  it("stores every local summary under the signed-in user id", async () => {
+    const recorder = makeStoreRecorder();
+    const first = makeSummary({ threadId: "aaaaaaaaaaaaaaaa" });
+    const second = makeSummary({ threadId: "bbbbbbbbbbbbbbbb" });
+
+    const result = await createSyncMyThreadsHandler(makeDeps("zhihu-1", recorder))({
+      summaries: [first, second],
+    });
+
+    expect(result).toEqual({ synced: true, count: 2 });
+    expect(recorder.saved).toEqual([
+      { userId: "zhihu-1", summary: first },
+      { userId: "zhihu-1", summary: second },
+    ]);
+  });
+
+  it("skips stale local entries instead of failing the batch", async () => {
+    const recorder = makeStoreRecorder();
+    const valid = makeSummary();
+    const stale = { ...makeSummary(), threadId: "not-a-thread-id" };
+
+    const result = await createSyncMyThreadsHandler(makeDeps("zhihu-1", recorder))({
+      summaries: [stale, valid],
+    });
+
+    expect(result).toEqual({ synced: true, count: 1 });
+    expect(recorder.saved).toEqual([{ userId: "zhihu-1", summary: valid }]);
+  });
+
+  it("does not touch the store for an empty collection", async () => {
+    const recorder = makeStoreRecorder();
+    const deps = makeDeps("zhihu-1", recorder);
+
+    const result = await createSyncMyThreadsHandler(deps)({ summaries: [] });
+
+    expect(result).toEqual({ synced: true, count: 0 });
+    expect(deps.storeCalls()).toBe(0);
+  });
+
+  it("rejects payloads that are not a bounded array", async () => {
+    const recorder = makeStoreRecorder();
+    const handler = createSyncMyThreadsHandler(makeDeps("zhihu-1", recorder));
+
+    expect(await handler(null)).toEqual({ synced: false, reason: "INVALID_REQUEST" });
+    expect(await handler({ summaries: "not-an-array" })).toEqual({
+      synced: false,
+      reason: "INVALID_REQUEST",
+    });
+    expect(
+      await handler({
+        summaries: Array.from({ length: 51 }, (_, index) =>
+          makeSummary({ threadId: index.toString(16).padStart(16, "0") }),
+        ),
+      }),
+    ).toEqual({ synced: false, reason: "INVALID_REQUEST" });
+    expect(recorder.saved).toEqual([]);
+  });
+
+  it("reports a store failure without claiming the migration happened", async () => {
+    const recorder = makeStoreRecorder({ failSave: true });
+    const result = await createSyncMyThreadsHandler(makeDeps("zhihu-1", recorder))({
+      summaries: [makeSummary()],
+    });
+
+    expect(result).toEqual({ synced: false, reason: "STORE_FAILED" });
   });
 });

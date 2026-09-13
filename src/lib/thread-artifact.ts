@@ -455,6 +455,11 @@ export const createQuestionLearningThread = (input: ThreadArtifactInput): Thread
   }
 
   const excerptFingerprints = new Map<string, string>();
+  /**
+   * Which answers or articles each excerpt fingerprint can belong to. A set is
+   * required because the same excerpt text can be stored under two stages.
+   */
+  const excerptAnswerIds = new Map<string, Set<string>>();
   const timelineStages: TimelineStage[] = [];
 
   for (const raw of input.timelineStages) {
@@ -510,6 +515,10 @@ export const createQuestionLearningThread = (input: ThreadArtifactInput): Thread
 
     const normalizedExcerpt = normalizeText(raw.excerpt.excerpt);
     excerptFingerprints.set(raw.excerpt.fingerprint, normalizedExcerpt);
+    const answerIdsForFingerprint =
+      excerptAnswerIds.get(raw.excerpt.fingerprint) ?? new Set<string>();
+    answerIdsForFingerprint.add(raw.answerId);
+    excerptAnswerIds.set(raw.excerpt.fingerprint, answerIdsForFingerprint);
 
     timelineStages.push({
       questionId: raw.questionId,
@@ -599,6 +608,18 @@ export const createQuestionLearningThread = (input: ThreadArtifactInput): Thread
     }
 
     if (!sourceStage) {
+      return failure("INVALID_LEARNING_NODE");
+    }
+
+    // A node must quote the source it declares. Otherwise the artifact claims a
+    // primary source that the node itself never cites.
+    const citedAnswerIds = new Set<string>();
+    for (const ref of evidenceRefs) {
+      for (const answerId of excerptAnswerIds.get(ref.excerptFingerprint) ?? []) {
+        citedAnswerIds.add(answerId);
+      }
+    }
+    if (!citedAnswerIds.has(raw.sourceAnswerId)) {
       return failure("INVALID_LEARNING_NODE");
     }
 

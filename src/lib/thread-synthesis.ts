@@ -276,11 +276,13 @@ const validateNode = (
       .filter((id): id is string => typeof id === "string" && id !== ""),
   );
   const declaredAnswerId = typeof raw.sourceAnswerId === "string" ? raw.sourceAnswerId.trim() : "";
-  const sourceAnswerId = answerIdMap.has(declaredAnswerId)
+  // The declared source is only trusted when the node actually quotes it.
+  // Bookkeeping slips (a placeholder, or a source the node never cites) fall
+  // back to the first cited answer rather than discarding a grounded node; the
+  // artifact layer then enforces the same invariant for every caller.
+  const sourceAnswerId = citedAnswerIds.has(declaredAnswerId)
     ? declaredAnswerId
-    : citedAnswerIds.size === 1
-      ? [...citedAnswerIds][0]
-      : "";
+    : (citedAnswerIds.values().next().value ?? "");
   if (sourceAnswerId === "") return reject("unknown_source_answer");
 
   // sourceUrl is metadata we already own, not a model claim.  Trusting our
@@ -328,6 +330,8 @@ const SYSTEM_PROMPT =
   "Every evidenceRef.quote MUST be copied verbatim from the corresponding excerpt text. " +
   "Never say the author was wrong; say the premise has changed. " +
   "SourceAnswerId must be one of the provided timeline stage answer IDs. " +
+  "每个节点的 sourceAnswerId 必须属于该节点自己的 evidenceRefs 所引用的来源，" +
+  "不要指向这个节点没有引用的回答或文章。 " +
   "If you are not certain about a claim, use kind 'unknown' with a factual summary. " +
   "Do not add fields such as id, content, evidenceRef, source, selection_reference, or misconception_reminder. " +
   "Use exactly the requested field names. " +

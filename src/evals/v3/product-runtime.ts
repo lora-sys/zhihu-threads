@@ -8,9 +8,10 @@ import { createReadThreadHandler } from "../../server/read-thread-artifact";
 import { createAskThreadAgentHandler } from "../../server/ask-thread-agent";
 import { createAnswerExcerpt, type AnswerExcerpt } from "../../lib/answer-excerpt";
 import { createQuestionLearningThread } from "../../lib/thread-artifact";
-import { makeSqliteExcerptStore } from "../../lib/excerpt-store";
-import { makeSqliteThreadArtifactStore } from "../../lib/thread-artifact-store";
-import { makeSqliteDailyQuotaStore } from "../../lib/sqlite-daily-quota-store";
+import { makeExcerptStore } from "../../lib/excerpt-store";
+import { makeBetterSqliteExecutor } from "../../lib/sql-executor";
+import { makeDailyQuotaStore } from "../../lib/sqlite-daily-quota-store";
+import { makeThreadArtifactStore } from "../../lib/thread-artifact-store";
 import { makeDailyQuotaGuard } from "../../lib/daily-quota";
 import { makeFetchOpenAiTransport, makeOpenAiChatCompletions } from "../../lib/openai-adapter";
 import type { Network } from "./network.ts";
@@ -49,11 +50,21 @@ export const completeFor =
       config.fixtureFetch,
     );
 export const createProductPort = async (config: ProductConfig) => {
-  const excerpts = await Effect.runPromise(makeSqliteExcerptStore(`${config.root}/excerpts.db`));
-  const threads = await Effect.runPromise(
-    makeSqliteThreadArtifactStore(`${config.root}/threads.db`),
+  // Eval runs stay on isolated local files: build the executor explicitly so a
+  // hosted-database environment variable can never redirect evaluation writes.
+  const excerptExecutor = await Effect.runPromise(
+    makeBetterSqliteExecutor(`${config.root}/excerpts.db`),
   );
-  const quotaStore = await Effect.runPromise(makeSqliteDailyQuotaStore(`${config.root}/quota.db`));
+  const threadExecutor = await Effect.runPromise(
+    makeBetterSqliteExecutor(`${config.root}/threads.db`),
+  );
+  const quotaExecutor = await Effect.runPromise(
+    makeBetterSqliteExecutor(`${config.root}/quota.db`),
+  );
+
+  const excerpts = await Effect.runPromise(makeExcerptStore(excerptExecutor));
+  const threads = await Effect.runPromise(makeThreadArtifactStore(threadExecutor));
+  const quotaStore = await Effect.runPromise(makeDailyQuotaStore(quotaExecutor));
   const quota = makeDailyQuotaGuard({ store: quotaStore, limitPerDay: 100 });
   const diagnostics: string[] = [];
   const onError = (error: unknown) => {

@@ -147,6 +147,42 @@ describe("thread-synthesis synthesizeThread", () => {
     }
   });
 
+  it("repairs a node whose declared source is not among its own citations", async () => {
+    const firstStage = makeStage();
+    const secondStage = makeStage({
+      answerId: "200",
+      canonicalUrl: "https://www.zhihu.com/question/42/answer/200",
+      excerpt: {
+        ...firstStage.excerpt,
+        answerId: "200",
+        sourceContentId: "src-2",
+        excerpt: "A second answer explains a different part of the mechanism.",
+        fingerprint: "v1:6666666666666666",
+      },
+    });
+
+    // Known answer id, but this node never quotes that answer.
+    const misattributed: SynthesizedNode = {
+      ...validNodePayload,
+      sourceAnswerId: "200",
+      sourceUrl: "https://www.zhihu.com/question/42/answer/200",
+    };
+
+    const outcome = await runWorkflow(
+      baseDeps(makeSucceedChat(buildValidResponse([misattributed]))),
+      makeInput({ timelineStages: [firstStage, secondStage] }),
+    );
+
+    expect(outcome._tag).toBe("success");
+    if (outcome._tag === "success") {
+      expect(outcome.result.nodes).toHaveLength(1);
+      expect(outcome.result.nodes[0]?.sourceAnswerId).toBe("100");
+      expect(outcome.result.nodes[0]?.sourceUrl).toBe(
+        "https://www.zhihu.com/question/42/answer/100",
+      );
+    }
+  });
+
   it("uses a safe fallback guide when the model guide has a bad citation", async () => {
     const response = JSON.stringify({
       nodes: [validNodePayload],

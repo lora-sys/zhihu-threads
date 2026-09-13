@@ -75,13 +75,28 @@ src/
 
 ## 评测
 
-264 条冻结黄金题（SHA-256 锁定，不可修改）：RAG 96、工具调用 48、多轮 48、Bug 回归 36、对抗安全 36。每次运行保存完整 JSON trace（工具输入/输出/耗时/错误），支持版本对比。
+评测分三层，命令入口不同：
 
-本地 `/evals` 页面可视化所有 run：质量概览、失败分布、trace inspector。
+| 命令                | 作用                                         | 是否需要密钥 |
+| ------------------- | -------------------------------------------- | ------------ |
+| `pnpm eval:offline` | Eval v3 离线契约与合成场景，阻断真实网络     | 不需要       |
+| `pnpm eval`         | Eval v3 真实语义评测，调用真实模型与知乎接口 | 需要         |
+| `pnpm eval:legacy`  | 264 条冻结黄金集与 `/evals` 看板             | 需要         |
+
+Eval v3 把执行与评分分开：执行器只接收输入，预期结果只交给评分器；逐次尝试、重试、调用与用量都保留，引文存在、来源绑定与结论支持分别判定，未评判不会被算作通过。设计与运行说明见 [docs/eval-v3.md](docs/eval-v3.md)。
 
 ```bash
-EVAL_DATASET=golden-v2.jsonl EVAL_LIMIT=66 EVAL_STRIDE=4 EVAL_CONCURRENCY=8 pnpm eval
+# 离线契约（无需密钥）
+pnpm eval:offline
+
+# 真实语义冒烟：1 题、最多 20 次网络调用
+EVAL_LIVE=1 EVAL_LIMIT=1 EVAL_MAX_RUN_CALLS=20 pnpm eval
+
+# 旧黄金集（264 题，SHA-256 锁定）
+EVAL_DATASET=golden-v2.jsonl EVAL_LIMIT=66 EVAL_STRIDE=4 EVAL_CONCURRENCY=8 pnpm eval:legacy
 ```
+
+本地 `/evals` 页面可视化旧黄金集的 run：质量概览、失败分布、trace inspector。
 
 ## 数据边界
 

@@ -417,6 +417,47 @@ describe("thread-artifact", () => {
       expect(asFailure(result).reason).toBe("INVALID_LEARNING_NODE");
     });
 
+    it("returns INVALID_LEARNING_NODE when a node declares a source it does not cite", () => {
+      const stageA = makeStage();
+      const stageB = makeStage({
+        answerId: "789",
+        title: "Second Answer",
+        canonicalUrl: "https://www.zhihu.com/question/123/answer/789",
+        excerpt: {
+          questionId: "123",
+          answerId: "789",
+          capturedAt: 1_700_000_000_000,
+          sourceContentId: "src-2",
+          sourceContentType: "Answer",
+          sourceEditTime: 1_700_000_000_000,
+          excerpt: "A different excerpt from the second answer.",
+          fingerprint: "v1:bbbbbbbbbbbbbbbb",
+        },
+      });
+      // The node quotes the first answer but claims the second one as its source.
+      const node = makeNode({
+        sourceAnswerId: "789",
+        sourceUrl: "https://www.zhihu.com/question/123/answer/789",
+      });
+
+      const result = createQuestionLearningThread(
+        makeInput({ timelineStages: [stageA, stageB], learningNodes: [node] }),
+      );
+
+      expect(asFailure(result).reason).toBe("INVALID_LEARNING_NODE");
+    });
+
+    it("accepts a node whose declared source is among its own citations", () => {
+      const result = createQuestionLearningThread(makeInput({ learningNodes: [makeNode()] }));
+      const artifact = asSuccess(result).artifact;
+
+      expect(artifact.learningNodes).toHaveLength(1);
+      expect(artifact.learningNodes[0]?.sourceAnswerId).toBe("456");
+      expect(artifact.learningNodes[0]?.evidenceRefs[0]?.excerptFingerprint).toBe(
+        "v1:aaaaaaaaaaaaaaaa",
+      );
+    });
+
     it.each([
       { value: -0.1, label: "below 0" },
       { value: 1.1, label: "above 1" },

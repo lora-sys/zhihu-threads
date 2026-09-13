@@ -1,0 +1,89 @@
+name: Eval v3 live semantics
+
+on:
+  push:
+    branches:
+      - feat/eval-v3-offline-agent-harness
+    paths:
+      - ".github/workflows/eval-v3-semantics.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval-v3-live-semantics
+  cancel-in-progress: false
+
+jobs:
+  semantics:
+    if: github.repository == 'lora-sys/zhihu-threads' && github.ref == 'refs/heads/feat/eval-v3-offline-agent-harness'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Require real provider configuration
+        id: configuration
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL || secrets.OPENAI_BASE_URL }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL || secrets.OPENAI_MODEL }}
+          ZHIHU_ACCESS_SECRET: ${{ secrets.ZHIHU_ACCESS_SECRET }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          required = ['OPENAI_API_KEY', 'OPENAI_BASE_URL', 'OPENAI_MODEL', 'ZHIHU_ACCESS_SECRET']
+          missing = [name for name in required if not os.environ.get(name, '').strip()]
+          status = {'configuration': 'missing' if missing else 'ready', 'missing': missing, 'semantic_quality': 'not_evaluated', 'commit': os.environ['GITHUB_SHA']}
+          directory = Path('.local/evals/v3/acceptance')
+          directory.mkdir(parents=True, exist_ok=True)
+          (directory / 'configuration.json').write_text(json.dumps(status, indent=2))
+          print(json.dumps(status))
+          if missing:
+              raise SystemExit('Semantic acceptance blocked: configure the listed Actions secrets or variables, then rerun this workflow.')
+          PY
+      - uses: voidzero-dev/setup-vp@313600b80b104eadebb9111787d37a2e83e014ca
+        with:
+          node-version: "24"
+          cache: true
+      - run: vp install --frozen-lockfile
+      - name: Evaluate actual product outputs with semantic judge
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL || secrets.OPENAI_BASE_URL }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL || secrets.OPENAI_MODEL }}
+          ZHIHU_ACCESS_SECRET: ${{ secrets.ZHIHU_ACCESS_SECRET }}
+          EVAL_JUDGE_MODEL: ${{ vars.EVAL_JUDGE_MODEL || secrets.EVAL_JUDGE_MODEL }}
+          EVAL_V3_COMMAND: "run"
+          EVAL_LIVE: "1"
+          EVAL_JUDGE: "true"
+          EVAL_REQUIRE_SEMANTICS: "1"
+          EVAL_DATASET: "golden-v2.jsonl"
+          EVAL_LIMIT: "3"
+          EVAL_CONCURRENCY: "1"
+          EVAL_MAX_ATTEMPTS: "1"
+          EVAL_MAX_CALLS: "20"
+          EVAL_MAX_RUN_CALLS: "40"
+          EVAL_MAX_STEPS: "16"
+          EVAL_EXECUTION_TIMEOUT_MS: "180000"
+          EVAL_JUDGE_TIMEOUT_MS: "30000"
+          EVAL_TIMEOUT_MS: "720000"
+        run: |
+          if [ -z "$EVAL_JUDGE_MODEL" ]; then
+            unset EVAL_JUDGE_MODEL
+          fi
+          vp exec vitest run src/evals/v3/live.test.ts
+      - name: Retain redacted semantic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-v3-live-semantic-evidence
+          path: |
+            .local/evals/v3/acceptance/configuration.json
+            .local/evals/v3/**/report.json
+            .local/evals/v3/**/report.md
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error

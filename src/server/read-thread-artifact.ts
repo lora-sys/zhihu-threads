@@ -10,6 +10,7 @@
 import { Effect } from "effect";
 import { createServerFn } from "@tanstack/react-start";
 
+import { findFeaturedThreadArtifact } from "../lib/featured-thread-artifacts";
 import { makeSqliteThreadArtifactStore } from "../lib/thread-artifact-store";
 import type { QuestionLearningThread } from "../lib/thread-artifact";
 
@@ -32,6 +33,11 @@ export interface ReadThreadDeps {
   readonly createThreadStore: () => Promise<
     import("../lib/thread-artifact-store").ThreadArtifactStore
   >;
+  /**
+   * Curated threads ship with the build, so a database without them (fresh
+   * deployment, reset volume) still serves the featured links.
+   */
+  readonly findFallbackArtifact?: (threadId: string) => QuestionLearningThread | null;
 }
 
 export const createReadThreadHandler =
@@ -51,6 +57,14 @@ export const createReadThreadHandler =
       const artifact = await Effect.runPromise(store.findById(threadId));
 
       if (artifact === null) {
+        const fallback = deps.findFallbackArtifact?.(threadId) ?? null;
+        if (fallback !== null) {
+          return {
+            success: true,
+            artifact: fallback,
+          };
+        }
+
         return {
           success: false as const,
           code: "ARTIFACT_NOT_FOUND",
@@ -99,5 +113,6 @@ export const readThreadArtifactFn = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<ReadThreadResponse> => {
     return createReadThreadHandler({
       createThreadStore: getOrCreateThreadStore,
+      findFallbackArtifact: findFeaturedThreadArtifact,
     })(data);
   });

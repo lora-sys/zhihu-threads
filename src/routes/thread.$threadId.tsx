@@ -14,6 +14,7 @@ import {
 } from "../lib/thread-collection";
 import { askThreadAgentFn } from "../server/ask-thread-agent";
 import { readThreadArtifactFn } from "../server/read-thread-artifact";
+import { removeMyThreadFn, saveMyThreadFn } from "../server/user-threads";
 import { StudyBadgeCard } from "../components/thread/StudyBadgeCard";
 
 type ThreadResponse = Awaited<ReturnType<typeof readThreadArtifactFn>>;
@@ -145,6 +146,8 @@ function ThreadView() {
   const navigate = useNavigate();
   const boundRead = useServerFn(readThreadArtifactFn);
   const boundAsk = useServerFn(askThreadAgentFn);
+  const boundSaveMyThread = useServerFn(saveMyThreadFn);
+  const boundRemoveMyThread = useServerFn(removeMyThreadFn);
 
   const [loading, setLoading] = useState(true);
   const [response, setResponse] = useState<ThreadResponse | null>(null);
@@ -233,14 +236,30 @@ function ThreadView() {
       const ids = removeCollectedThread(response.artifact.threadId, window.localStorage);
       removeCollectedThreadSummary(response.artifact.threadId, window.localStorage);
       setCollected(ids.includes(response.artifact.threadId));
-      setCollectionFeedback("已从收藏移除");
+      setCollectionFeedback("已从本机收藏移除");
+
+      void boundRemoveMyThread({ data: { threadId: response.artifact.threadId } })
+        .then((result) => {
+          if (result.changed) setCollectionFeedback("已从你的学习空间移除");
+        })
+        .catch(() => undefined);
       return;
     }
+
     const ids = saveCollectedThread(response.artifact.threadId, window.localStorage);
-    saveCollectedThreadSummary(response.artifact, window.localStorage);
+    const localSummaries = saveCollectedThreadSummary(response.artifact, window.localStorage);
     setCollected(ids.includes(response.artifact.threadId));
-    setCollectionFeedback("已加入本地收藏");
-  }, [collected, response]);
+    setCollectionFeedback("已收藏到本机浏览器");
+
+    const summary = localSummaries.find((item) => item.threadId === response.artifact.threadId);
+    if (!summary) return;
+
+    void boundSaveMyThread({ data: { summary } })
+      .then((result) => {
+        if (result.changed) setCollectionFeedback("已保存到你的知乎学习空间");
+      })
+      .catch(() => undefined);
+  }, [boundRemoveMyThread, boundSaveMyThread, collected, response]);
 
   const exportThread = useCallback(
     (format: "markdown" | "json") => {

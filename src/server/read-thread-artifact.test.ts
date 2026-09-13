@@ -98,6 +98,34 @@ describe("read-thread-artifact createReadThreadHandler", () => {
     expect(failure.message).toBe("该学习线程不存在或已被移除。");
   });
 
+  it("serves a shipped featured artifact when the database has no row", async () => {
+    const featured = makeArtifact({ threadId: VALID_THREAD_ID, question: "Shipped thread" });
+    const handler = buildHandler({
+      createThreadStore: async () => makeStore(null),
+      findFallbackArtifact: (threadId) => (threadId === VALID_THREAD_ID ? featured : null),
+    });
+
+    const result = await runHandler(handler, { threadId: VALID_THREAD_ID });
+    expect(result.success).toBe(true);
+    expect((result as { success: true; artifact: QuestionLearningThread }).artifact.question).toBe(
+      "Shipped thread",
+    );
+  });
+
+  it("prefers the stored artifact over the shipped fallback", async () => {
+    const stored = makeArtifact({ question: "Stored thread" });
+    const handler = buildHandler({
+      createThreadStore: async () => makeStore(stored),
+      findFallbackArtifact: () => makeArtifact({ question: "Shipped thread" }),
+    });
+
+    const result = await runHandler(handler, { threadId: VALID_THREAD_ID });
+    expect(result.success).toBe(true);
+    expect((result as { success: true; artifact: QuestionLearningThread }).artifact.question).toBe(
+      "Stored thread",
+    );
+  });
+
   it("returns ARTIFACT_NOT_FOUND for a non-existent thread ID", async () => {
     let lastId: string | undefined;
     const handler = buildHandler({

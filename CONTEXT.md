@@ -31,12 +31,20 @@ Study Badge、追问和收藏导出。
 
 以下变量必须设置在 `.env` 中：
 
-| 变量                  | 用途                       |
-| --------------------- | -------------------------- |
-| `ZHIHU_ACCESS_SECRET` | Zhihu API 访问密钥         |
-| `OPENAI_BASE_URL`     | 兼容 OpenAI 的模型服务地址 |
-| `OPENAI_API_KEY`      | 模型服务密钥               |
-| `OPENAI_MODEL`        | 兼容 OpenAI 的模型名称     |
+| 变量                       | 用途                                            |
+| -------------------------- | ----------------------------------------------- |
+| `ZHIHU_ACCESS_SECRET`      | Zhihu API 访问密钥                              |
+| `OPENAI_BASE_URL`          | 兼容 OpenAI 的模型服务地址                      |
+| `OPENAI_API_KEY`           | 模型服务密钥                                    |
+| `OPENAI_MODEL`             | 兼容 OpenAI 的模型名称                          |
+| `ZHIHU_OAUTH_APP_ID`       | 黑客松 OAuth App ID（登录）                     |
+| `ZHIHU_OAUTH_APP_KEY`      | 黑客松 OAuth App Key（仅服务端）                |
+| `ZHIHU_OAUTH_REDIRECT_URI` | 与赛事页面登记值完全一致的回调地址              |
+| `SESSION_SECRET`           | 至少 32 字符，用于加密登录会话 Cookie           |
+| `TURSO_DATABASE_URL`       | 可选；设置后使用托管 SQLite，未设置回退本地文件 |
+| `TURSO_AUTH_TOKEN`         | Turso 访问 token                                |
+
+完整部署步骤见 [docs/deploy-koyeb-turso.md](docs/deploy-koyeb-turso.md)。
 
 ## 数据流
 

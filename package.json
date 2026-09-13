@@ -10,14 +10,17 @@
     "generate-routes": "tsr generate",
     "build": "vp build",
     "preview": "vp preview",
+    "start": "srvx serve --prod --port ${PORT:-3000} --entry dist/server/server.js --static ../client",
     "eval": "EVAL_COMMAND=run vp exec vitest run src/evals/eval-harness.test.ts"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "@tanstack/react-router": "latest",
     "@tanstack/react-start": "latest",
     "effect": "^3.22.1",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "srvx": "^1.0.4"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

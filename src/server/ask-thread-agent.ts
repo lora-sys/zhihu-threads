@@ -1,7 +1,9 @@
 import { Effect } from "effect";
 import { createServerFn } from "@tanstack/react-start";
 
+import { findFeaturedThreadArtifact } from "../lib/featured-thread-artifacts";
 import { makeSqliteThreadArtifactStore } from "../lib/thread-artifact-store";
+import type { QuestionLearningThread } from "../lib/thread-artifact";
 import type { ThreadArtifactStore } from "../lib/thread-artifact-store";
 import {
   answerThreadAgentOffline,
@@ -45,6 +47,8 @@ export interface AskThreadAgentDeps {
   readonly getSecret: () => string | undefined;
   readonly getModel: () => string;
   readonly createThreadStore: () => Promise<ThreadArtifactStore>;
+  /** Curated shipped threads stay answerable even without a seeded database. */
+  readonly findFallbackArtifact?: (threadId: string) => QuestionLearningThread | null;
   readonly createChat: (
     secret: string,
     model: string,
@@ -70,7 +74,8 @@ export const createAskThreadAgentHandler =
 
     try {
       const store = await deps.createThreadStore();
-      const artifact = await Effect.runPromise(store.findById(threadId));
+      const storedArtifact = await Effect.runPromise(store.findById(threadId));
+      const artifact = storedArtifact ?? deps.findFallbackArtifact?.(threadId) ?? null;
       if (!artifact) {
         return {
           success: false as const,
@@ -157,6 +162,7 @@ export const askThreadAgentFn = createServerFn({ method: "POST" })
       getSecret: () => OPENAI_API_KEY,
       getModel: () => OPENAI_MODEL,
       createThreadStore: getOrCreateThreadStore,
+      findFallbackArtifact: findFeaturedThreadArtifact,
       createChat: createChatWrapper,
     })(data);
   });

@@ -1,9 +1,17 @@
 FROM node:24-slim AS base
-RUN apt-get update && apt-get install -y --no-install-recommends sqlite3 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl sqlite3 \
+    && rm -rf /var/lib/apt/lists/*
 
 FROM base AS deps
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+# better-sqlite3 has no prebuilt binary for this Node/ABI combo, so the deps
+# stage needs a minimal toolchain to compile it. The runtime stage does not.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+# pnpm-workspace.yaml carries the catalogs referenced by the lockfile.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile --prod=false
 
 FROM base AS build
@@ -27,5 +35,5 @@ ENV PORT=3000 \
     QUOTA_DB_PATH=/data/provider-quota.db
 USER node
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s CMD curl -sf http://localhost:3000/api/health || exit 1
-CMD ["node", "dist/server/server.js"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s CMD curl -sf "http://localhost:${PORT:-3000}/api/health" || exit 1
+CMD ["sh", "-c", "node node_modules/srvx/bin/srvx.mjs serve --prod --port ${PORT:-3000} --entry dist/server/server.js --static ../client"]

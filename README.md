@@ -28,6 +28,14 @@ pnpm test       # 345 tests
 pnpm build      # 生产构建
 ```
 
+## 部署与登录
+
+公网部署走 Koyeb + Turso（均免费、无需持久磁盘），步骤见
+[docs/deploy-koyeb-turso.md](docs/deploy-koyeb-turso.md)。配置知乎 OAuth 的
+`ZHIHU_OAUTH_APP_ID` / `ZHIHU_OAUTH_APP_KEY` / `ZHIHU_OAUTH_REDIRECT_URI` 与
+`SESSION_SECRET` 后，导航栏出现「使用知乎登录」；登录后的「我的学习空间」按知乎账号
+保存，换设备登录也能继续。
+
 ## 技术栈
 
 | 层       | 技术                                                                                          |

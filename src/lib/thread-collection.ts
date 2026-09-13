@@ -33,7 +33,8 @@ export const readCollectedThreads = (storage: TextStorage): readonly string[] =>
   }
 };
 
-const isValidSummary = (value: unknown): value is CollectedThreadSummary => {
+/** Validate one workspace summary. Shared by the client cache and the server store. */
+export const isValidCollectedThreadSummary = (value: unknown): value is CollectedThreadSummary => {
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
   return (
@@ -41,16 +42,20 @@ const isValidSummary = (value: unknown): value is CollectedThreadSummary => {
     /^[0-9a-f]{16}$/.test(record.threadId) &&
     typeof record.question === "string" &&
     record.question.trim() !== "" &&
+    record.question.length <= 300 &&
     typeof record.createdAt === "number" &&
     Number.isSafeInteger(record.createdAt) &&
     record.createdAt >= 0 &&
     typeof record.sourceCount === "number" &&
     Number.isSafeInteger(record.sourceCount) &&
     record.sourceCount > 0 &&
+    record.sourceCount <= 1000 &&
     typeof record.nodeCount === "number" &&
     Number.isSafeInteger(record.nodeCount) &&
     record.nodeCount > 0 &&
-    typeof record.yearRange === "string"
+    record.nodeCount <= 1000 &&
+    typeof record.yearRange === "string" &&
+    record.yearRange.length <= 32
   );
 };
 
@@ -66,7 +71,7 @@ export const readCollectedThreadSummaries = (
         ? []
         : (() => {
             const parsed: unknown = JSON.parse(raw);
-            return Array.isArray(parsed) ? parsed.filter(isValidSummary) : [];
+            return Array.isArray(parsed) ? parsed.filter(isValidCollectedThreadSummary) : [];
           })();
     const detailMap = new Map(details.map((item) => [item.threadId, item]));
     return collectedIds.map(

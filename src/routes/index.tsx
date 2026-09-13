@@ -3,11 +3,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { PRODUCT_TAGLINE } from "../lib/app-info";
+import { LoginNotice } from "../components/auth/LoginNotice";
 import { FEATURED_THREADS } from "../lib/featured-threads";
 import {
   readCollectedThreadSummaries,
   type CollectedThreadSummary,
 } from "../lib/thread-collection";
+import { listMyThreadsFn } from "../server/user-threads";
+import { mergeWorkspaceThreads } from "../lib/workspace-threads";
 import {
   searchAnswerCandidates,
   type AnswerCandidate,
@@ -38,9 +41,16 @@ const STARTER_QUESTIONS = [
 export const Route = createFileRoute("/")({
   validateSearch: (
     search: Record<string, unknown>,
-  ): { readonly q?: string; readonly clarify?: boolean } => ({
+  ): {
+    readonly q?: string;
+    readonly clarify?: boolean;
+    readonly login?: "ok" | "error";
+    readonly reason?: string;
+  } => ({
     q: typeof search.q === "string" ? search.q : undefined,
     clarify: typeof search.clarify === "boolean" ? search.clarify : undefined,
+    login: search.login === "ok" || search.login === "error" ? search.login : undefined,
+    reason: typeof search.reason === "string" ? search.reason.slice(0, 32) : undefined,
   }),
   head: () => ({
     meta: [
@@ -70,6 +80,12 @@ type GenerationState =
   | { status: "success"; threadId: string }
   | { status: "error"; code: string; message: string };
 
+interface AccountWorkspace {
+  readonly authenticated: boolean;
+  readonly unavailable: boolean;
+  readonly threads: readonly CollectedThreadSummary[];
+}
+
 const CANDIDATE_ROLE_LABELS: Record<CandidateRole, string> = {
   baseline: "基础认知",
   correction: "边界修正",
@@ -95,6 +111,7 @@ function QuestionThreadEntry() {
   const boundClarify = useServerFn(clarifyQuestionFn);
   const boundGenerate = useServerFn(generateThreadArtifactFn);
   const boundRank = useServerFn(rankAnswerCandidatesFn);
+  const boundListMyThreads = useServerFn(listMyThreadsFn);
 
   // Input state
   const [questionText, setQuestionText] = useState("");
@@ -116,12 +133,61 @@ function QuestionThreadEntry() {
   // Generation state
   const [generation, setGeneration] = useState<GenerationState>({ status: "idle" });
   const [collectedThreads, setCollectedThreads] = useState<readonly CollectedThreadSummary[]>([]);
+  const [accountWorkspace, setAccountWorkspace] = useState<AccountWorkspace>({
+    authenticated: false,
+    unavailable: false,
+    threads: [],
+  });
   const initialAgentQueryRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     setCollectedThreads(readCollectedThreadSummaries(window.localStorage));
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    boundListMyThreads()
+      .then((result) => {
+        if (!active) return;
+        if (!result.authenticated) {
+          setAccountWorkspace({ authenticated: false, unavailable: false, threads: [] });
+          return;
+        }
+        setAccountWorkspace({
+          authenticated: true,
+          unavailable: result.unavailable === true,
+          threads: result.threads,
+        });
+      })
+      .catch(() => {
+        if (active) {
+          setAccountWorkspace({ authenticated: false, unavailable: true, threads: [] });
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [boundListMyThreads]);
+
+  const workspaceThreads = accountWorkspace.authenticated
+    ? mergeWorkspaceThreads(collectedThreads, accountWorkspace.threads)
+    : collectedThreads;
+
+  const dismissLoginNotice = useCallback(() => {
+    void navigate({
+      to: "/",
+      search: (previous) => ({
+        q: previous.q,
+        clarify: previous.clarify,
+        login: undefined,
+        reason: undefined,
+      }),
+      replace: true,
+    });
+  }, [navigate]);
 
   // Handlers
 
@@ -375,6 +441,13 @@ function QuestionThreadEntry() {
         />
 
         <div className="relative z-10 mx-auto w-full max-w-[1120px] px-5 sm:px-8">
+          {search.login ? (
+            <LoginNotice
+              status={search.login}
+              reason={search.reason}
+              onDismiss={dismissLoginNotice}
+            />
+          ) : null}
           <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-12 lg:items-center">
             {/* Left column */}
             <div>
@@ -789,7 +862,7 @@ function QuestionThreadEntry() {
         )}
 
         {/* Featured learning threads */}
-        {collectedThreads.length > 0 && (
+        {workspaceThreads.length > 0 && (
           <section aria-labelledby="my-learning-heading">
             <div className="max-w-3xl">
               <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-accent">
@@ -802,12 +875,16 @@ function QuestionThreadEntry() {
                 我的学习空间
               </h2>
               <p className="mt-3 max-w-[68ch] text-base leading-7 text-ink-subtle">
-                这些学习线保存在这台设备的浏览器里。继续打开可以回到证据、学习节点和 Agent 追问。
+                {accountWorkspace.authenticated && !accountWorkspace.unavailable
+                  ? "这些学习线保存在你的知乎账号下，换一台设备登录后仍然可以继续。"
+                  : accountWorkspace.authenticated && accountWorkspace.unavailable
+                    ? "账号里的学习线暂时读不到，先显示这台设备上保存的内容。"
+                    : "这些学习线保存在这台设备的浏览器里。登录知乎账号后，它们会跟随你的账号。"}
               </p>
             </div>
 
             <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {collectedThreads.map((thread) => (
+              {workspaceThreads.map((thread) => (
                 <Link
                   key={thread.threadId}
                   to="/thread/$threadId"

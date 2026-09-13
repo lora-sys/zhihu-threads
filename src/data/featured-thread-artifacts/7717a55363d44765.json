@@ -1,0 +1,281 @@
+{
+  "threadId": "7717a55363d44765",
+  "question": "如何理解React Server Components的核心机制？",
+  "refinedQuery": "如何理解 React Server Components 的核心机制",
+  "createdAt": 1788509573193,
+  "timelineStages": [
+    {
+      "questionId": "",
+      "answerId": "617256830",
+      "title": "React Lab:我们正在进行的工作 - 2023年3月 - 知乎",
+      "authorDisplayName": "justjavac",
+      "editTime": 1679881308,
+      "canonicalUrl": "https://zhuanlan.zhihu.com/p/617256830",
+      "excerpt": {
+        "questionId": "",
+        "answerId": "617256830",
+        "capturedAt": 1788509365999,
+        "sourceContentId": "656705026741246397",
+        "sourceContentType": "Article",
+        "sourceEditTime": 1679881308,
+        "excerpt": "原文： React Labs: What We've Been Working On – March 2023\n本文由 ChatGPT 生成。\n本文主要介绍了 React Labs 的最新进展，具体内容如下：\nReact Server Components\n1.React Server Components 是由 React 团队设计的一种新的应用程序架构。\n2.RSC 是一种新的组件类型，可以在构建期间运行或在服务器上运行，以访问文件系统或获取静态内容，并将数据通过 props 传递到交互式客户端组件中。\n3.RSC 将服务器中心的多页面应用程序的简单“请求/响应”模型与客户端中心的单页面应用程序的无缝交互性相结合，为您提供了最佳的体验。\n4.最近，React Server Components RFC 已经合并，解决了一些问题，并与合作伙伴达成共识。\n5.异步/等待是从 Server Components 进行数据获取的主要方式，RSC 还计划通过引入一个名为 \"use\" 的新钩子来支持从客户端进行数据加载。\n6.RSC 还支持从客户端向服务器发送数据，实现数据库突变和表单。这是通过让您将 Server Action 函数传递到服务器/客户端边界来实现的。\n7.React Server Components 已经在 Next.js App Router 中发布，这是一种深度集成的路由器，支持 RSC 作为原语，但这不是构建 RSC 兼容路由器和框架的唯一方式。\n8.建议使用现有框架，但如果需要构建自定义框架，则可以。但是，由于需要深度打包器集成，构建自己的 RSC 兼容框架并不像我们希望的那样容易。\nAsset Loading\n1.Suspense 允许您指定在组件的数据或代码仍在加载时在屏幕上显示什么内容。这使您的用户可以在页面加载期间以及在加载更多数据和代码的路由器导航期间逐步看到更多的内容。然而，从用户的角度来看，仅考虑数据加载和渲染并不能完全说明新内容是否已准备就绪。因为默认情况下，浏览器独立地加载样式表、字体和图像，这可能导致 UI 跳动和连续的布局转换。\n2.我们正在全面将 Suspense 与样式表、字体和图像的加载生命周期进行集成，以便 React 考虑它们以确定内容是否准备好显示。在不更改 React 组件编写方式的情况下，更新将以更一致和愉悦的方式行为。作为一种优化，我们还将提供一种手动方式，直接从组件中预加载资产，例如字体。\n3.我们目前正在实现这些功能，并将很快有更多信息分享。",
+        "fingerprint": "v1:34e076dc49309732"
+      },
+      "excerptBoundaryNote": "这是摘录，不是完整回答"
+    },
+    {
+      "questionId": "435921124",
+      "answerId": "3385964734",
+      "title": "如何看待 React Server Components? - 知乎",
+      "authorDisplayName": "程普",
+      "editTime": 1706951073,
+      "canonicalUrl": "https://www.zhihu.com/question/435921124/answer/3385964734",
+      "excerpt": {
+        "questionId": "435921124",
+        "answerId": "3385964734",
+        "capturedAt": 1788509365999,
+        "sourceContentId": "5542316291863465867",
+        "sourceContentType": "Answer",
+        "sourceEditTime": 1706951073,
+        "excerpt": "介绍 React Server Components\n在以前，当用户访问一个 React 应用时，服务端会返回一个空的 HMTL 文件，里面包含一个或多个 JavaScript 文件，浏览器解析 HTML，然后下载 JavaScript 文件，并在客户端呈现网页。\nReact Server Components（RSC）的出现拓展了 React 的范围。顾名思义，React Server Components 就是 React 的服务端组件，它们只在服务端运行，可以调用服务端的方法、访问数据库等。RSC 每次预渲染后把 HTML 发送到客户端，由客户端进行水合（hydrate）并正式渲染。这种做法的好处是，一部分原本要打包在客户端 JavaScript 文件里的代码，现在可以放在服务端运行了，从而减轻客户端的负担，提升应用的整体性能和响应速度。\n「充分利用服务器资源」是发布 RSC 的最大动机，换句话说就是：一切不需要交互的内容都应当放到服务端。React 官方举了一个非常典型的例子——渲染 markdown 内容， 独立全栈开发交流群「充分利用服务器资源」是发布 RSC 的最大动机，换句话说就是：一切不需要交互的内容都应当放到服务端。React 官方举了一个非常典型的例子——渲染 markdown 内容，\n// 客户端组件渲染\n\nimport marked from 'marked'; // 35.9K (11.2K gzipped)\nimport sanitizeHtml from 'sanitize-html'; // 206K (63.3K gzipped)\n\nfunction NoteWithMarkdown({text}) {\n  const html = sanitizeHtml(marked(text));\n  return (/* 渲染 */);\n}\n这个例子中，如果用客户端组件渲染，客户端至少要下载 200 多k的文件才能渲染出内容，但这里的 markdown 内容其实不需要交互，也不会因为用户的操作产生更新信息的需求，非常符合使用 RSC 的理念。如果使用 RSC，\n// 服务器组件渲染\n\nimport marked from 'marked'; // 零打包大小\nimport sanitizeHtml from 'sanitize-html'; // 零打包大小",
+        "fingerprint": "v1:0c9cb4d2deb4e5f9"
+      },
+      "excerptBoundaryNote": "这是摘录，不是完整回答"
+    },
+    {
+      "questionId": "",
+      "answerId": "2033226914391961788",
+      "title": "Vue & React 服务端渲染深度分析 - 知乎",
+      "authorDisplayName": "老王以为",
+      "editTime": 1777539143,
+      "canonicalUrl": "https://zhuanlan.zhihu.com/p/2033226914391961788",
+      "excerpt": {
+        "questionId": "",
+        "answerId": "2033226914391961788",
+        "capturedAt": 1788509365999,
+        "sourceContentId": "3114327576693264355",
+        "sourceContentType": "Article",
+        "sourceEditTime": 1777539143,
+        "excerpt": "・getServerSideProps：纯 SSR，每个请求在服务端执行\n・getStaticProps：SSG，构建时预渲染\n・getStaticPaths：动态路由的 SSG 配置\n・getInitialProps：服务端和客户端都会执行的遗留 API\nPages Router 的架构特点：\n・页面级别的渲染模式选择，无法在同一页面中混合 SSR 和 CSR\n・数据获取与组件渲染分离（getServerSideProps 在页面组件外部执行）\n・所有页面组件默认作为 Client Components 打包到 bundle 中\nApp Router（Next.js 13+）：\nApp Router 是 Next.js 的重大架构升级，引入了 React Server Components 作为默认渲染模式。\nApp Router 的核心架构变化：\n1.Server Components 为默认：app 目录下的所有组件默认是 Server Components，只在服务端执行，不打包到客户端 bundle 中。\n2.Client Components 显式声明：需要通过 \"use client\" 指令声明 Client Components。这些组件及其依赖会被打包到客户端 bundle 中，在服务端渲染 HTML 骨架，在客户端完成注水和交互。\n3.组件级数据获取：Server Components 可以直接在组件内部进行数据获取（调用数据库、API、文件系统等），数据获取逻辑与组件渲染紧密耦合。\n4.嵌套布局（Nested Layouts）：layout.js 文件定义共享布局，在导航时布局状态保持（不重新挂载），只有页面内容区域更新。\n5.Streaming 原生支持：App Router 基于 React 的 renderToPipeableStream，原生支持流式 SSR 和 Suspense。\n6.缓存策略多维化：App Router 引入了四级缓存模型：\n・Data Cache：服务端数据获取结果的缓存\n・Full Route Cache：完整路由 HTML 的缓存\n・Router Cache：客户端路由缓存\n・Request Memoization：单个请求中的数据去重\nPages Router vs App Router 架构对比：\n维度\tPages Router\tApp Router",
+        "fingerprint": "v1:d783e807784d90b0"
+      },
+      "excerptBoundaryNote": "这是摘录，不是完整回答"
+    }
+  ],
+  "learningNodes": [
+    {
+      "kind": "consensus",
+      "title": "React Server Components (RSC) 的基础定义与架构定位",
+      "summary": "这一层是RSC的官方共识定义，明确了其属于React团队设计的新应用程序架构，是可运行于构建期或服务端的组件类型，支持访问文件系统、获取静态内容，通过props向交互式客户端组件传递数据，同时融合传统多页应用的简单请求/响应模型与单页应用的无缝交互性，该定义在2023年3月RSC RFC合并后成为通用认知。",
+      "evidenceRefs": [
+        {
+          "excerptFingerprint": "v1:34e076dc49309732",
+          "quote": "React Server Components 是由 React 团队设计的一种新的应用程序架构。"
+        },
+        {
+          "excerptFingerprint": "v1:34e076dc49309732",
+          "quote": "RSC 是一种新的组件类型，可以在构建期间运行或在服务器上运行，以访问文件系统或获取静态内容，并将数据通过 props 传递到交互式客户端组件中。"
+        },
+        {
+          "excerptFingerprint": "v1:34e076dc49309732",
+          "quote": "RSC 将服务器中心的多页面应用程序的简单“请求/响应”模型与客户端中心的单页面应用程序的无缝交互性相结合，为您提供了最佳的体验。"
+        }
+      ],
+      "sourceAnswerId": "617256830",
+      "sourceUrl": "https://zhuanlan.zhihu.com/p/617256830",
+      "uncertainty": 0.1
+    },
+    {
+      "kind": "cause",
+      "title": "RSC 的设计动机：充分利用服务器资源与客户端Bundle优化",
+      "summary": "这一层讲RSC的核心设计动机与价值，核心机制是「充分利用服务器资源」，将无需交互的内容放到服务端执行，避免对应依赖打包到客户端Bundle，该机制成立的边界是组件不涉及用户交互、无需响应客户端状态更新，典型场景如静态markdown内容渲染，可大幅降低客户端下载体积，提升应用性能。",
+      "evidenceRefs": [
+        {
+          "excerptFingerprint": "v1:0c9cb4d2deb4e5f9",
+          "quote": "「充分利用服务器资源」是发布 RSC 的最大动机，换句话说就是：一切不需要交互的内容都应当放到服务端。"
+        }
+      ],
+      "sourceAnswerId": "3385964734",
+      "sourceUrl": "https://www.zhihu.com/question/435921124/answer/3385964734",
+      "uncertainty": 0.1
+    },
+    {
+      "kind": "relationship",
+      "title": "RSC 的服务端-客户端边界数据交互机制（Server Action、use钩子）",
+      "summary": "这一层讲RSC跨服务端-客户端边界的数据交互机制，分为两个方向：一是服务端向客户端传参，异步/等待是RSC数据获取的主要方式；二是客户端向服务端发数据，通过Server Action函数跨越边界实现数据库突变和表单提交，同时RSC计划引入use钩子支持客户端数据加载，该机制成立的边界是跨边界传递的数据需要符合RSC的序列化要求。",
+      "evidenceRefs": [
+        {
+          "excerptFingerprint": "v1:34e076dc49309732",
+          "quote": "异步/等待是从 Server Components 进行数据获取的主要方式，RSC 还计划通过引入一个名为 \"use\" 的新钩子来支持从客户端进行数据加载。"
+        },
+        {
+          "excerptFingerprint": "v1:34e076dc49309732",
+          "quote": "RSC 还支持从客户端向服务器发送数据，实现数据库突变和表单。这是通过让您将 Server Action 函数传递到服务器/客户端边界来实现的。"
+        }
+      ],
+      "sourceAnswerId": "617256830",
+      "sourceUrl": "https://zhuanlan.zhihu.com/p/617256830",
+      "uncertainty": 0.2
+    },
+    {
+      "kind": "evolution",
+      "title": "Next.js App Router 中 RSC 的默认落地规则（\"use client\"指令）",
+      "summary": "这一层讲RSC在Next.js App Router中的默认落地形态，核心机制是「Server Components默认，Client Components显式声明」：app目录下所有组件默认是仅在服务端执行的Server Components，不打包到客户端Bundle；需要交互的组件必须通过\"use client\"指令显式声明为Client Components，其依赖会被打包到客户端，服务端先渲染HTML骨架，客户端完成注水和交互，该规则成立的边界是使用Next.js 13+的App Router架构。",
+      "evidenceRefs": [
+        {
+          "excerptFingerprint": "v1:d783e807784d90b0",
+          "quote": "Server Components 为默认：app 目录下的所有组件默认是 Server Components，只在服务端执行，不打包到客户端 bundle 中。"
+        },
+        {
+          "excerptFingerprint": "v1:d783e807784d90b0",
+          "quote": "Client Components 显式声明：需要通过 \"use client\" 指令声明 Client Components。这些组件及其依赖会被打包到客户端 bundle 中，在服务端渲染 HTML 骨架，在客户端完成注水和交互。"
+        }
+      ],
+      "sourceAnswerId": "2033226914391961788",
+      "sourceUrl": "https://zhuanlan.zhihu.com/p/2033226914391961788",
+      "uncertainty": 0.1
+    },
+    {
+      "kind": "changed_premise",
+      "title": "Pages Router 到 App Router 的架构变迁：组件级数据获取替代页面级数据获取",
+      "summary": "这一层讲RSC带来的数据获取与渲染模式前提变化，核心机制是「组件级数据获取替代页面级数据获取」：Server Components可以直接在组件内部调用数据库、API、文件系统等资源，数据获取逻辑与组件渲染紧密耦合，不再需要Pages Router中页面级的getServerSideProps、getStaticProps等API，且支持在同一页面中混合SSR和CSR，该机制成立的边界是使用App Router架构的页面。",
+      "evidenceRefs": [
+        {
+          "excerptFingerprint": "v1:d783e807784d90b0",
+          "quote": "数据获取与组件渲染分离（getServerSideProps 在页面组件外部执行）"
+        },
+        {
+          "excerptFingerprint": "v1:d783e807784d90b0",
+          "quote": "所有页面组件默认作为 Client Components 打包到 bundle 中"
+        },
+        {
+          "excerptFingerprint": "v1:d783e807784d90b0",
+          "quote": "组件级数据获取：Server Components 可以直接在组件内部进行数据获取（调用数据库、API、文件系统等），数据获取逻辑与组件渲染紧密耦合。"
+        },
+        {
+          "excerptFingerprint": "v1:d783e807784d90b0",
+          "quote": "页面级别的渲染模式选择，无法在同一页面中混合 SSR 和 CSR"
+        }
+      ],
+      "sourceAnswerId": "2033226914391961788",
+      "sourceUrl": "https://zhuanlan.zhihu.com/p/2033226914391961788",
+      "uncertainty": 0.1
+    },
+    {
+      "kind": "consensus",
+      "title": "RSC 配套的缓存与流式渲染机制（四级缓存、renderToPipeableStream、Suspense集成）",
+      "summary": "这一层讲RSC的配套优化机制，核心包含两部分：一是四级缓存模型，包括Data Cache（服务端数据获取结果缓存）、Full Route Cache（完整路由HTML缓存）、Router Cache（客户端路由缓存）、Request Memoization（单请求数据去重）；二是基于renderToPipeableStream的原生流式SSR，结合Suspense实现内容渐进式加载，同时Suspense已集成样式表、字体、图像的加载生命周期，避免UI跳动和布局偏移，该机制成立的边界是App Router环境下的页面渲染与资源加载场景。",
+      "evidenceRefs": [
+        {
+          "excerptFingerprint": "v1:d783e807784d90b0",
+          "quote": "Streaming 原生支持：App Router 基于 React 的 renderToPipeableStream，原生支持流式 SSR 和 Suspense。"
+        }
+      ],
+      "sourceAnswerId": "2033226914391961788",
+      "sourceUrl": "https://zhuanlan.zhihu.com/p/2033226914391961788",
+      "uncertainty": 0.2
+    },
+    {
+      "kind": "unknown",
+      "title": "RSC 的框架适配现状与限制：深度打包器集成需求",
+      "summary": "这一层讲当前RSC的框架适配限制，核心机制是RSC的落地需要深度打包器集成，因此官方建议使用现有成熟框架（如Next.js App Router）实现RSC能力，若构建自定义RSC兼容框架，由于深度打包器集成的需求，实现难度较高，该限制当前成立，但后续生态工具发展可能发生变化。",
+      "evidenceRefs": [
+        {
+          "excerptFingerprint": "v1:34e076dc49309732",
+          "quote": "建议使用现有框架，但如果需要构建自定义框架，则可以。但是，由于需要深度打包器集成，构建自己的 RSC 兼容框架并不像我们希望的那样容易。"
+        }
+      ],
+      "sourceAnswerId": "617256830",
+      "sourceUrl": "https://zhuanlan.zhihu.com/p/617256830",
+      "uncertainty": 0.3
+    }
+  ],
+  "learningGuide": {
+    "overview": {
+      "headline": "从真实摘录组织的学习线",
+      "summary": "当前学习线由 3 条真实摘录和 7 个学习节点组成，覆盖共识、因果、关系、演变、前提变化、待确认。它保留可回指的证据，不把摘录当作完整回答。",
+      "evidenceRefs": [
+        {
+          "excerptFingerprint": "v1:34e076dc49309732",
+          "quote": "React Server Components 是由 React 团队设计的一种新的应用程序架构。"
+        },
+        {
+          "excerptFingerprint": "v1:34e076dc49309732",
+          "quote": "RSC 是一种新的组件类型，可以在构建期间运行或在服务器上运行，以访问文件系统或获取静态内容，并将数据通过 props 传递到交互式客户端组件中。"
+        },
+        {
+          "excerptFingerprint": "v1:34e076dc49309732",
+          "quote": "RSC 将服务器中心的多页面应用程序的简单“请求/响应”模型与客户端中心的单页面应用程序的无缝交互性相结合，为您提供了最佳的体验。"
+        },
+        {
+          "excerptFingerprint": "v1:0c9cb4d2deb4e5f9",
+          "quote": "「充分利用服务器资源」是发布 RSC 的最大动机，换句话说就是：一切不需要交互的内容都应当放到服务端。"
+        },
+        {
+          "excerptFingerprint": "v1:d783e807784d90b0",
+          "quote": "Server Components 为默认：app 目录下的所有组件默认是 Server Components，只在服务端执行，不打包到客户端 bundle 中。"
+        },
+        {
+          "excerptFingerprint": "v1:d783e807784d90b0",
+          "quote": "Client Components 显式声明：需要通过 \"use client\" 指令声明 Client Components。这些组件及其依赖会被打包到客户端 bundle 中，在服务端渲染 HTML 骨架，在客户端完成注水和交互。"
+        }
+      ]
+    },
+    "stages": [
+      {
+        "answerId": "617256830",
+        "role": "baseline",
+        "explanation": "共识证据：这一层是RSC的官方共识定义，明确了其属于React团队设计的新应用程序架构，是可运行于构建期或服务端的组件类型，支持访问文件系统、获取静态内容，通过props向交互式客户端组件传递数据，同时融合传统多页应用的简单请求/响应模型与单页应用的无缝交互性，该定义在2023年3月RSC RFC合并后成为通用认知。",
+        "transition": "先理解这一段的证据，再用后面的来源对照和修正它。",
+        "evidenceRefs": [
+          {
+            "excerptFingerprint": "v1:34e076dc49309732",
+            "quote": "React Server Components 是由 React 团队设计的一种新的应用程序架构。"
+          },
+          {
+            "excerptFingerprint": "v1:34e076dc49309732",
+            "quote": "RSC 是一种新的组件类型，可以在构建期间运行或在服务器上运行，以访问文件系统或获取静态内容，并将数据通过 props 传递到交互式客户端组件中。"
+          },
+          {
+            "excerptFingerprint": "v1:34e076dc49309732",
+            "quote": "RSC 将服务器中心的多页面应用程序的简单“请求/响应”模型与客户端中心的单页面应用程序的无缝交互性相结合，为您提供了最佳的体验。"
+          }
+        ]
+      },
+      {
+        "answerId": "3385964734",
+        "role": "baseline",
+        "explanation": "因果证据：这一层讲RSC的核心设计动机与价值，核心机制是「充分利用服务器资源」，将无需交互的内容放到服务端执行，避免对应依赖打包到客户端Bundle，该机制成立的边界是组件不涉及用户交互、无需响应客户端状态更新，典型场景如静态markdown内容渲染，可大幅降低客户端下载体积，提升应用性能。",
+        "transition": "对照上一个来源，重点检查这里的因果。",
+        "evidenceRefs": [
+          {
+            "excerptFingerprint": "v1:0c9cb4d2deb4e5f9",
+            "quote": "「充分利用服务器资源」是发布 RSC 的最大动机，换句话说就是：一切不需要交互的内容都应当放到服务端。"
+          }
+        ]
+      },
+      {
+        "answerId": "2033226914391961788",
+        "role": "extension",
+        "explanation": "演变证据：这一层讲RSC在Next.js App Router中的默认落地形态，核心机制是「Server Components默认，Client Components显式声明」：app目录下所有组件默认是仅在服务端执行的Server Components，不打包到客户端Bundle；需要交互的组件必须通过\"use client\"指令显式声明为Client Components，其依赖会被打包到客户端，服务端先渲染HTML骨架，客户端完成注水和交互，该规则成立的边界是使用Next.js 13+的App Router架构。",
+        "transition": "对照上一个来源，重点检查这里的演变。",
+        "evidenceRefs": [
+          {
+            "excerptFingerprint": "v1:d783e807784d90b0",
+            "quote": "Server Components 为默认：app 目录下的所有组件默认是 Server Components，只在服务端执行，不打包到客户端 bundle 中。"
+          },
+          {
+            "excerptFingerprint": "v1:d783e807784d90b0",
+            "quote": "Client Components 显式声明：需要通过 \"use client\" 指令声明 Client Components。这些组件及其依赖会被打包到客户端 bundle 中，在服务端渲染 HTML 骨架，在客户端完成注水和交互。"
+          }
+        ]
+      }
+    ],
+    "openQuestions": [
+      "“Pages Router 到 App Router 的架构变迁：组件级数据获取替代页面级数据获取”在什么条件下仍然成立？",
+      "下一步可以用哪个真实例子验证这条学习线？"
+    ]
+  },
+  "uncertainty": 0.9,
+  "fingerprint": "v1:c3bb56c6913f2123"
+}

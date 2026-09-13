@@ -11,7 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EvalsRouteImport } from './routes/evals'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ThreadThreadIdRouteImport } from './routes/thread.$threadId'
+import { Route as ApiAuthZhihuCallbackRouteImport } from './routes/api/auth/zhihu/callback'
+import { Route as ApiAuthZhihuLogoutRouteImport } from './routes/api/auth/zhihu/logout'
+import { Route as ApiAuthZhihuStartRouteImport } from './routes/api/auth/zhihu/start'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -23,40 +27,98 @@ const EvalsRoute = EvalsRouteImport.update({
   path: '/evals',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ThreadThreadIdRoute = ThreadThreadIdRouteImport.update({
   id: '/thread/$threadId',
   path: '/thread/$threadId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthZhihuCallbackRoute = ApiAuthZhihuCallbackRouteImport.update({
+  id: '/api/auth/zhihu/callback',
+  path: '/api/auth/zhihu/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthZhihuLogoutRoute = ApiAuthZhihuLogoutRouteImport.update({
+  id: '/api/auth/zhihu/logout',
+  path: '/api/auth/zhihu/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthZhihuStartRoute = ApiAuthZhihuStartRouteImport.update({
+  id: '/api/auth/zhihu/start',
+  path: '/api/auth/zhihu/start',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/evals': typeof EvalsRoute
+  '/api/health': typeof ApiHealthRoute
   '/thread/$threadId': typeof ThreadThreadIdRoute
+  '/api/auth/zhihu/callback': typeof ApiAuthZhihuCallbackRoute
+  '/api/auth/zhihu/logout': typeof ApiAuthZhihuLogoutRoute
+  '/api/auth/zhihu/start': typeof ApiAuthZhihuStartRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/evals': typeof EvalsRoute
+  '/api/health': typeof ApiHealthRoute
   '/thread/$threadId': typeof ThreadThreadIdRoute
+  '/api/auth/zhihu/callback': typeof ApiAuthZhihuCallbackRoute
+  '/api/auth/zhihu/logout': typeof ApiAuthZhihuLogoutRoute
+  '/api/auth/zhihu/start': typeof ApiAuthZhihuStartRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/evals': typeof EvalsRoute
+  '/api/health': typeof ApiHealthRoute
   '/thread/$threadId': typeof ThreadThreadIdRoute
+  '/api/auth/zhihu/callback': typeof ApiAuthZhihuCallbackRoute
+  '/api/auth/zhihu/logout': typeof ApiAuthZhihuLogoutRoute
+  '/api/auth/zhihu/start': typeof ApiAuthZhihuStartRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/evals' | '/thread/$threadId'
+  fullPaths:
+    | '/'
+    | '/evals'
+    | '/api/health'
+    | '/thread/$threadId'
+    | '/api/auth/zhihu/callback'
+    | '/api/auth/zhihu/logout'
+    | '/api/auth/zhihu/start'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/evals' | '/thread/$threadId'
-  id: '__root__' | '/' | '/evals' | '/thread/$threadId'
+  to:
+    | '/'
+    | '/evals'
+    | '/api/health'
+    | '/thread/$threadId'
+    | '/api/auth/zhihu/callback'
+    | '/api/auth/zhihu/logout'
+    | '/api/auth/zhihu/start'
+  id:
+    | '__root__'
+    | '/'
+    | '/evals'
+    | '/api/health'
+    | '/thread/$threadId'
+    | '/api/auth/zhihu/callback'
+    | '/api/auth/zhihu/logout'
+    | '/api/auth/zhihu/start'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EvalsRoute: typeof EvalsRoute
+  ApiHealthRoute: typeof ApiHealthRoute
   ThreadThreadIdRoute: typeof ThreadThreadIdRoute
+  ApiAuthZhihuCallbackRoute: typeof ApiAuthZhihuCallbackRoute
+  ApiAuthZhihuLogoutRoute: typeof ApiAuthZhihuLogoutRoute
+  ApiAuthZhihuStartRoute: typeof ApiAuthZhihuStartRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -75,11 +137,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EvalsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/thread/$threadId': {
       id: '/thread/$threadId'
       path: '/thread/$threadId'
       fullPath: '/thread/$threadId'
       preLoaderRoute: typeof ThreadThreadIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/zhihu/callback': {
+      id: '/api/auth/zhihu/callback'
+      path: '/api/auth/zhihu/callback'
+      fullPath: '/api/auth/zhihu/callback'
+      preLoaderRoute: typeof ApiAuthZhihuCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/zhihu/logout': {
+      id: '/api/auth/zhihu/logout'
+      path: '/api/auth/zhihu/logout'
+      fullPath: '/api/auth/zhihu/logout'
+      preLoaderRoute: typeof ApiAuthZhihuLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/zhihu/start': {
+      id: '/api/auth/zhihu/start'
+      path: '/api/auth/zhihu/start'
+      fullPath: '/api/auth/zhihu/start'
+      preLoaderRoute: typeof ApiAuthZhihuStartRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -88,7 +178,11 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EvalsRoute: EvalsRoute,
+  ApiHealthRoute: ApiHealthRoute,
   ThreadThreadIdRoute: ThreadThreadIdRoute,
+  ApiAuthZhihuCallbackRoute: ApiAuthZhihuCallbackRoute,
+  ApiAuthZhihuLogoutRoute: ApiAuthZhihuLogoutRoute,
+  ApiAuthZhihuStartRoute: ApiAuthZhihuStartRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,7 +1,13 @@
 import { Data, Effect } from "effect";
 
+import { makeSqlExecutor, type SqlExecutor } from "./sql-executor";
 import { createQuestionLearningThread } from "./thread-artifact";
-import type { QuestionLearningThread } from "./thread-artifact";
+import type {
+  LearningGuideInput,
+  LearningNodeInput,
+  QuestionLearningThread,
+  TimelineStageInput,
+} from "./thread-artifact";
 
 // ── Errors ─────────────────────────────────────────────────────────────────────
 
@@ -48,121 +54,102 @@ WHERE thread_id = ?;
 
 const DEFAULT_DB_PATH = process.env.DATABASE_PATH ?? ".local/thread-artifacts.db";
 
+const describe = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
+const attempt = <A>(reason: string, run: () => Promise<A>): Effect.Effect<A, StoreError> =>
+  Effect.tryPromise({
+    try: run,
+    catch: (error) => new StoreError({ reason: `${reason}: ${describe(error)}` }),
+  });
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 /**
- * Create a lazy Effect that opens (or creates) a SQLite database at `dbPath`
- * (defaults to `.local/thread-artifacts.db`).
- *
- * The database file and parent directories are created on first evaluation,
- * and the schema is applied idempotently.
+ * Rebuild a stored row through the domain factory. Any row that fails the
+ * current contract is reported as a store error instead of reaching React.
  */
-export const makeSqliteThreadArtifactStore = (
-  dbPath = DEFAULT_DB_PATH,
+const decodeRow = (row: Record<string, unknown>): QuestionLearningThread => {
+  const parsed: unknown = JSON.parse(String(row.artifact_json));
+  if (!isRecord(parsed)) {
+    throw new Error("artifact_json is not an object");
+  }
+
+  if (parsed.threadId !== String(row.thread_id)) {
+    throw new Error("threadId mismatch");
+  }
+  if (parsed.fingerprint !== String(row.fingerprint)) {
+    throw new Error("fingerprint mismatch");
+  }
+
+  const result = createQuestionLearningThread({
+    threadId: String(row.thread_id),
+    question: String(row.question),
+    refinedQuery: String(row.refined_query),
+    createdAt: Number(row.created_at),
+    timelineStages: Array.isArray(parsed.timelineStages)
+      ? (parsed.timelineStages as readonly TimelineStageInput[])
+      : [],
+    learningNodes: Array.isArray(parsed.learningNodes)
+      ? (parsed.learningNodes as readonly LearningNodeInput[])
+      : [],
+    learningGuide: isRecord(parsed.learningGuide)
+      ? (parsed.learningGuide as unknown as LearningGuideInput)
+      : undefined,
+    uncertainty: typeof parsed.uncertainty === "number" ? parsed.uncertainty : 0,
+  });
+
+  if (result._tag === "failure") {
+    throw new Error(`invalid stored artifact: ${result.reason}`);
+  }
+
+  return result.artifact;
+};
+
+// ── Store ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Build the thread artifact store on top of any {@link SqlExecutor}: a local
+ * SQLite file in development, a hosted libSQL database when configured.
+ */
+export const makeThreadArtifactStore = (
+  database: SqlExecutor,
 ): Effect.Effect<ThreadArtifactStore, StoreError> =>
   Effect.gen(function* () {
-    const database = yield* Effect.tryPromise({
-      try: async () => {
-        const nodePath = (await import("node:path")).default;
-        const nodeFs = (await import("node:fs")).default;
-        const betterSqlite3 = (await import("better-sqlite3")).default;
-
-        const parent = nodePath.dirname(dbPath);
-        if (!nodeFs.existsSync(parent)) {
-          nodeFs.mkdirSync(parent, { recursive: true });
-        }
-        return betterSqlite3(dbPath, { fileMustExist: false });
-      },
-      catch: (e: unknown) =>
-        new StoreError({
-          reason: `failed to open sqlite db at ${dbPath}: ${e instanceof Error ? e.message : String(e)}`,
-        }),
-    });
-
-    yield* Effect.try({
-      try: () => database.exec(SCHEMA_SQL),
-      catch: (e: unknown) =>
-        new StoreError({
-          reason: `schema migration failed: ${e instanceof Error ? e.message : String(e)}`,
-        }),
-    });
-
-    const insertStmt = database.prepare(INSERT_OR_IGNORE_SQL);
-    const findStmt = database.prepare(FIND_BY_ID_SQL);
+    yield* attempt("schema migration failed", () => database.exec(SCHEMA_SQL));
 
     const save = (artifact: QuestionLearningThread): Effect.Effect<void, StoreError> =>
-      Effect.try({
-        try: () => {
-          insertStmt.run(
-            artifact.threadId,
-            artifact.question,
-            artifact.refinedQuery,
-            artifact.createdAt,
-            JSON.stringify(artifact),
-            artifact.fingerprint,
-          );
-        },
-        catch: (e: unknown) =>
-          new StoreError({
-            reason: `save failed: ${e instanceof Error ? e.message : String(e)}`,
-          }),
-      });
+      attempt("save failed", () =>
+        database.run(INSERT_OR_IGNORE_SQL, [
+          artifact.threadId,
+          artifact.question,
+          artifact.refinedQuery,
+          artifact.createdAt,
+          JSON.stringify(artifact),
+          artifact.fingerprint,
+        ]),
+      ).pipe(Effect.map(() => undefined));
 
     const findById = (threadId: string): Effect.Effect<QuestionLearningThread | null, StoreError> =>
-      Effect.try({
-        try: () => {
-          const row = findStmt.get(threadId) as Record<string, unknown> | undefined;
-          if (!row) return null;
-
-          const parsed = JSON.parse(String(row.artifact_json)) as unknown;
-          if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-            throw new Error("artifact_json is not an object");
-          }
-
-          // Ensure threadId and fingerprint from the row match the payload
-          const obj = parsed as Record<string, unknown>;
-          if (obj.threadId !== String(row.thread_id)) {
-            throw new Error("threadId mismatch");
-          }
-          if (obj.fingerprint !== String(row.fingerprint)) {
-            throw new Error("fingerprint mismatch");
-          }
-
-          // Validate through the factory — this ensures every row that enters
-          // React has passed the full domain validation.
-          const result = createQuestionLearningThread({
-            threadId: String(row.thread_id),
-            question: String(row.question),
-            refinedQuery: String(row.refined_query),
-            createdAt: Number(row.created_at),
-            timelineStages: Array.isArray((obj as { timelineStages?: unknown[] }).timelineStages)
-              ? ((obj as { timelineStages: unknown[] })
-                  .timelineStages as import("./thread-artifact").TimelineStageInput[])
-              : [],
-            learningNodes: Array.isArray((obj as { learningNodes?: unknown[] }).learningNodes)
-              ? ((obj as { learningNodes: unknown[] })
-                  .learningNodes as import("./thread-artifact").LearningNodeInput[])
-              : [],
-            learningGuide:
-              typeof (obj as { learningGuide?: unknown }).learningGuide === "object" &&
-              (obj as { learningGuide?: unknown }).learningGuide !== null
-                ? (obj as { learningGuide: import("./thread-artifact").LearningGuideInput })
-                    .learningGuide
-                : undefined,
-            uncertainty:
-              typeof (obj as { uncertainty?: unknown }).uncertainty === "number"
-                ? (obj as { uncertainty: number }).uncertainty
-                : 0,
-          });
-
-          if (result._tag === "failure") {
-            throw new Error(`invalid stored artifact: ${result.reason}`);
-          }
-          return result.artifact;
-        },
-        catch: (e: unknown) =>
-          new StoreError({
-            reason: `findById failed: ${e instanceof Error ? e.message : String(e)}`,
-          }),
+      attempt("findById failed", async () => {
+        const row = await database.get<Record<string, unknown>>(FIND_BY_ID_SQL, [threadId]);
+        return row ? decodeRow(row) : null;
       });
 
     return { save, findById };
   });
+
+/**
+ * Create the thread artifact store described by the environment: hosted libSQL
+ * when `TURSO_DATABASE_URL` is set, otherwise a local SQLite file at `dbPath`.
+ */
+export const makeSqliteThreadArtifactStore = (
+  dbPath = DEFAULT_DB_PATH,
+): Effect.Effect<ThreadArtifactStore, StoreError> =>
+  makeSqlExecutor({ dbPath }).pipe(
+    Effect.flatMap(makeThreadArtifactStore),
+    Effect.mapError((error) =>
+      error instanceof StoreError ? error : new StoreError({ reason: error.reason }),
+    ),
+  );

@@ -15,3 +15,6 @@ dist-ssr
 __unconfig*
 todos.json
 *.png
+
+# Electron runtime unpacked by the local desktop host; not part of this project.
+squashfs-root/

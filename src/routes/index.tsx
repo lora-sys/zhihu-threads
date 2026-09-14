@@ -874,28 +874,28 @@ function QuestionThreadEntry() {
           </section>
         )}
 
-        {/* Featured learning threads */}
-        {workspaceThreads.length > 0 && (
-          <section aria-labelledby="my-learning-heading">
-            <div className="max-w-3xl">
-              <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-accent">
-                MY LEARNING SPACE
-              </p>
-              <h2
-                id="my-learning-heading"
-                className="mt-3 font-display text-[30px] font-bold leading-9 tracking-tight text-ink sm:text-[34px]"
-              >
-                我的学习空间
-              </h2>
-              <p className="mt-3 max-w-[68ch] text-base leading-7 text-ink-subtle">
-                {accountWorkspace.authenticated && !accountWorkspace.unavailable
-                  ? "这些学习线保存在你的知乎账号下，换一台设备登录后仍然可以继续。"
-                  : accountWorkspace.authenticated && accountWorkspace.unavailable
-                    ? "账号里的学习线暂时读不到，先显示这台设备上保存的内容。"
-                    : "这些学习线保存在这台设备的浏览器里。登录知乎账号后，它们会跟随你的账号。"}
-              </p>
-            </div>
+        {/* My learning space: always present so the nav anchor always lands here. */}
+        <section id="my-learning" aria-labelledby="my-learning-heading" className="scroll-mt-24">
+          <div className="max-w-3xl">
+            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-accent">
+              MY LEARNING SPACE
+            </p>
+            <h2
+              id="my-learning-heading"
+              className="mt-3 font-display text-[30px] font-bold leading-9 tracking-tight text-ink sm:text-[34px]"
+            >
+              我的学习空间
+            </h2>
+            <p className="mt-3 max-w-[68ch] text-base leading-7 text-ink-subtle">
+              {accountWorkspace.authenticated && !accountWorkspace.unavailable
+                ? "这些学习线保存在你的知乎账号下，换一台设备登录后仍然可以继续。"
+                : accountWorkspace.authenticated && accountWorkspace.unavailable
+                  ? "账号里的学习线暂时读不到，先显示这台设备上保存的内容。"
+                  : "这些学习线保存在这台设备的浏览器里。登录知乎账号后，它们会跟随你的账号。"}
+            </p>
+          </div>
 
+          {workspaceThreads.length > 0 ? (
             <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
               {workspaceThreads.map((thread) => (
                 <Link
@@ -926,8 +926,22 @@ function QuestionThreadEntry() {
                 </Link>
               ))}
             </div>
-          </section>
-        )}
+          ) : (
+            <div className="mt-8 border-2 border-rule-strong bg-paper-3 p-5 shadow-[var(--shadow-card)] sm:p-6">
+              <p className="font-display text-lg font-semibold text-ink">这里还没有保存的学习线</p>
+              <p className="mt-2 max-w-[68ch] text-sm leading-6 text-ink-subtle">
+                在任意学习线页面点「收藏线程」，它就会出现在这里。登录知乎账号后，收藏会跟随账号，
+                换设备登录也能继续。
+              </p>
+              <a
+                href="#demo-heading"
+                className="mt-4 inline-flex min-h-11 items-center border-2 border-rule-strong bg-paper-3 px-4 text-sm font-medium text-ink transition-colors duration-150 hover:bg-paper-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                先看三张精选学习线
+              </a>
+            </div>
+          )}
+        </section>
 
         <section aria-labelledby="demo-heading">
           <div className="max-w-3xl">

@@ -19,6 +19,14 @@ export function SiteNav() {
           <span className="relative ml-3">ZHIHU THREADS</span>
         </Link>
         <div className="ml-auto flex items-center gap-3 sm:gap-5">
+          <Link
+            to="/"
+            hash="my-learning"
+            className="inline-flex min-h-11 items-center font-mono text-[10px] font-semibold tracking-[0.14em] text-muted transition-colors duration-150 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+          >
+            <span className="sm:hidden">学习空间</span>
+            <span className="hidden sm:inline">我的学习空间</span>
+          </Link>
           <ViewerControl />
           <Link
             to="/evals"

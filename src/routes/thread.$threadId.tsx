@@ -774,6 +774,18 @@ function ThreadView() {
               {collectionFeedback && (
                 <p aria-live="polite" className="mt-3 text-xs text-success">
                   {collectionFeedback}
+                  {collected ? (
+                    <>
+                      {" "}
+                      <Link
+                        to="/"
+                        hash="my-learning"
+                        className="font-medium text-accent underline underline-offset-2"
+                      >
+                        去学习空间看看 →
+                      </Link>
+                    </>
+                  ) : null}
                 </p>
               )}
             </div>

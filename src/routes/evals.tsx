@@ -650,7 +650,8 @@ function EvalDashboardPage() {
               重新加载本机报告
             </button>
             <p className="text-sm text-muted">
-              {error ?? dashboard?.message ?? "本实例没有本地评测记录，以上为归档证据。"}
+              {error ??
+                "本实例没有本地评测记录（评测运行写在开发机本地），以上是随版本归档的真实结果。"}
             </p>
           </div>
         </div>

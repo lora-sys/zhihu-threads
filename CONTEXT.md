@@ -44,7 +44,7 @@ Study Badge、追问和收藏导出。
 | `TURSO_DATABASE_URL`       | 可选；设置后使用托管 SQLite，未设置回退本地文件 |
 | `TURSO_AUTH_TOKEN`         | Turso 访问 token                                |
 
-完整部署步骤见 [docs/deploy-koyeb-turso.md](docs/deploy-koyeb-turso.md)。
+完整部署步骤见 [docs/deploy-render-turso.md](docs/deploy-render-turso.md)。
 
 ## 数据流
 

@@ -92,6 +92,14 @@ turso db tokens create zhihu-threads  # 即 TURSO_AUTH_TOKEN
 - 评测：`pnpm eval:offline` 80/80 契约与 10/10 合成场景通过；真实语义评测跑过 3 题 CI 同形配置，
   报告在 `.local/evals/v3/<run>/report.md`。
 
+### 线上验收（2026-09-14）
+
+- 服务：`https://zhihu-threads.onrender.com`，`/api/health` 200，首页与精选线程页正常。
+- 真实 OAuth：`app_id=574`，授权跳转、回调 state 校验、`/user` 读取、密封会话 Cookie 全部跑通；
+  授权用户的知乎昵称与头像在站点显示，账号学习空间按 uid 落库。
+- 线上搜索：返回真实知乎候选，说明生产环境仍走 Turso 写入。
+- 敏感扫描：公网响应与客户端产物中均未出现 App Key 与开放平台 Access Secret。
+
 已知限制，提交材料里不要写成「评测通过」：
 
 1. 冻结题集的第三个概念要求**字面命中**（例如「序列化边界」「组合使用」）。检索摘录里没有这些词时规则会报

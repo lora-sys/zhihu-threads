@@ -15,10 +15,10 @@ import type { AnswerExcerpt } from "../lib/answer-excerpt";
 
 import { buildQueryVariants } from "../lib/search-query-variants";
 
-import { makeSqliteExcerptStore, type ExcerptStore } from "../lib/excerpt-store";
+import { makeConfiguredExcerptStore, type ExcerptStore } from "../lib/excerpt-store";
 import { StoreError } from "../lib/excerpt-store";
 
-import { makeSqliteDailyQuotaStore } from "../lib/sqlite-daily-quota-store";
+import { makeConfiguredDailyQuotaStore } from "../lib/sqlite-daily-quota-store";
 
 import { makeDailyQuotaGuard, QuotaExceededError, type DailyQuotaGuard } from "../lib/daily-quota";
 
@@ -373,7 +373,7 @@ let quotaGuardInstance: Promise<DailyQuotaGuard> | null = null;
 
 const getOrCreateStore = async (): Promise<ExcerptStore> => {
   if (!storeInstance) {
-    storeInstance = Effect.runPromise(makeSqliteExcerptStore());
+    storeInstance = Effect.runPromise(makeConfiguredExcerptStore());
   }
   return storeInstance;
 };
@@ -381,7 +381,7 @@ const getOrCreateStore = async (): Promise<ExcerptStore> => {
 const getOrCreateQuotaGuard = async (): Promise<DailyQuotaGuard> => {
   if (!quotaGuardInstance) {
     quotaGuardInstance = Effect.runPromise(
-      Effect.map(makeSqliteDailyQuotaStore(".local/provider-quota.db"), (store) =>
+      Effect.map(makeConfiguredDailyQuotaStore(".local/provider-quota.db"), (store) =>
         makeDailyQuotaGuard({ store, limitPerDay: DAILY_QUOTA_LIMIT_PER_DAY }),
       ),
     );

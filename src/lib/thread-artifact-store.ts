@@ -1,6 +1,6 @@
 import { Data, Effect } from "effect";
 
-import { makeSqlExecutor, type SqlExecutor } from "./sql-executor";
+import { makeBetterSqliteExecutor, makeSqlExecutor, type SqlExecutor } from "./sql-executor";
 import { createQuestionLearningThread } from "./thread-artifact";
 import type {
   LearningGuideInput,
@@ -141,10 +141,24 @@ export const makeThreadArtifactStore = (
   });
 
 /**
- * Create the thread artifact store described by the environment: hosted libSQL
- * when `TURSO_DATABASE_URL` is set, otherwise a local SQLite file at `dbPath`.
+ * Local-only factory. Tests and local tooling must never reach a hosted
+ * database just because the environment happens to configure one.
  */
 export const makeSqliteThreadArtifactStore = (
+  dbPath = DEFAULT_DB_PATH,
+): Effect.Effect<ThreadArtifactStore, StoreError> =>
+  makeBetterSqliteExecutor(dbPath).pipe(
+    Effect.flatMap(makeThreadArtifactStore),
+    Effect.mapError((error) =>
+      error instanceof StoreError ? error : new StoreError({ reason: error.reason }),
+    ),
+  );
+
+/**
+ * Server-side factory: hosted libSQL when `TURSO_DATABASE_URL` is set,
+ * otherwise a local SQLite file at `dbPath`.
+ */
+export const makeConfiguredThreadArtifactStore = (
   dbPath = DEFAULT_DB_PATH,
 ): Effect.Effect<ThreadArtifactStore, StoreError> =>
   makeSqlExecutor({ dbPath }).pipe(

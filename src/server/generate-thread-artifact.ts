@@ -20,8 +20,8 @@ import { Cause, Effect, Option } from "effect";
 import { createServerFn } from "@tanstack/react-start";
 
 import { describeDomainError } from "../lib/domain-error";
-import { makeSqliteThreadArtifactStore } from "../lib/thread-artifact-store";
-import { makeSqliteExcerptStore } from "../lib/excerpt-store";
+import { makeConfiguredThreadArtifactStore } from "../lib/thread-artifact-store";
+import { makeConfiguredExcerptStore } from "../lib/excerpt-store";
 import { createQuestionLearningThread } from "../lib/thread-artifact";
 import {
   buildEvidenceOnlySynthesis,
@@ -341,14 +341,14 @@ let threadStoreSingleton: Promise<ThreadArtifactStore> | null = null;
 
 const getOrCreateExcerptStoreInstance = async (): Promise<ExcerptStore> => {
   if (!excerptStoreSingleton) {
-    excerptStoreSingleton = Effect.runPromise(makeSqliteExcerptStore());
+    excerptStoreSingleton = Effect.runPromise(makeConfiguredExcerptStore());
   }
   return excerptStoreSingleton;
 };
 
 const getOrCreateThreadStoreInstance = async (): Promise<ThreadArtifactStore> => {
   if (!threadStoreSingleton) {
-    threadStoreSingleton = Effect.runPromise(makeSqliteThreadArtifactStore());
+    threadStoreSingleton = Effect.runPromise(makeConfiguredThreadArtifactStore());
   }
   return threadStoreSingleton;
 };

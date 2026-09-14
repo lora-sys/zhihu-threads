@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import type { DailyQuotaOutcome, DailyQuotaStore } from "./daily-quota";
 import { DailyQuotaStoreError } from "./daily-quota";
-import { makeSqlExecutor, type SqlExecutor } from "./sql-executor";
+import { makeBetterSqliteExecutor, makeSqlExecutor, type SqlExecutor } from "./sql-executor";
 
 // ── SQL ───────────────────────────────────────────────────────────────────────
 
@@ -71,10 +71,26 @@ export const makeDailyQuotaStore = (
   });
 
 /**
- * Create the quota store described by the environment: hosted libSQL when
- * `TURSO_DATABASE_URL` is set, otherwise a local SQLite file at `dbPath`.
+ * Local-only factory. Tests and local tooling must never reach a hosted
+ * database just because the environment happens to configure one.
  */
 export const makeSqliteDailyQuotaStore = (
+  dbPath = DEFAULT_DB_PATH,
+): Effect.Effect<DailyQuotaStore, DailyQuotaStoreError> =>
+  makeBetterSqliteExecutor(dbPath).pipe(
+    Effect.flatMap(makeDailyQuotaStore),
+    Effect.mapError((error) =>
+      error instanceof DailyQuotaStoreError
+        ? error
+        : new DailyQuotaStoreError({ reason: error.reason }),
+    ),
+  );
+
+/**
+ * Server-side factory: hosted libSQL when `TURSO_DATABASE_URL` is set,
+ * otherwise a local SQLite file at `dbPath`.
+ */
+export const makeConfiguredDailyQuotaStore = (
   dbPath = DEFAULT_DB_PATH,
 ): Effect.Effect<DailyQuotaStore, DailyQuotaStoreError> =>
   makeSqlExecutor({ dbPath }).pipe(

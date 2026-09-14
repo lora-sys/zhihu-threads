@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { createServerFn } from "@tanstack/react-start";
 
 import { findFeaturedThreadArtifact } from "../lib/featured-thread-artifacts";
-import { makeSqliteThreadArtifactStore } from "../lib/thread-artifact-store";
+import { makeConfiguredThreadArtifactStore } from "../lib/thread-artifact-store";
 import type { QuestionLearningThread } from "../lib/thread-artifact";
 import type { ThreadArtifactStore } from "../lib/thread-artifact-store";
 import {
@@ -133,7 +133,7 @@ let threadStoreInstance: Promise<ThreadArtifactStore> | null = null;
 
 const getOrCreateThreadStore = async (): Promise<ThreadArtifactStore> => {
   if (!threadStoreInstance) {
-    threadStoreInstance = Effect.runPromise(makeSqliteThreadArtifactStore());
+    threadStoreInstance = Effect.runPromise(makeConfiguredThreadArtifactStore());
   }
   return threadStoreInstance;
 };

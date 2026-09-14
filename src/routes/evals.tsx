@@ -4,6 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { readEvalDashboardFn } from "../server/read-eval-dashboard";
 import type { EvalDashboard, EvalRunBrief } from "../evals/eval-report-store";
+import {
+  EVAL_FIXED_DEFECTS,
+  EVAL_KNOWN_LIMITS,
+  EVAL_REPRODUCE_COMMANDS,
+  LIVE_EVIDENCE,
+  OFFLINE_EVIDENCE,
+} from "../lib/eval-evidence";
 
 export const Route = createFileRoute("/evals")({
   head: () => ({
@@ -494,25 +501,158 @@ function EvalDashboardPage() {
   if (error || !dashboard || dashboard.status !== "ok" || !summary) {
     return (
       <main className="min-h-screen bg-paper pb-20 text-ink">
-        <div className="mx-auto max-w-xl px-5 pt-20 sm:px-8">
-          <section className="border-2 border-rule-strong bg-paper-3 p-6 shadow-[var(--shadow-panel)]">
+        <div className="mx-auto w-full max-w-[1120px] px-5 pt-10 sm:px-8">
+          <header className="max-w-3xl">
             <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-accent">
-              EVAL DASHBOARD
+              EVAL EVIDENCE
             </p>
-            <h1 className="mt-3 font-display text-3xl font-bold tracking-tight">
-              没有可显示的评测报告
+            <h1 className="mt-3 font-display text-[32px] font-bold leading-10 tracking-tight sm:text-[40px]">
+              评测证据
             </h1>
-            <p className="mt-3 text-sm leading-6 text-ink-subtle">
-              {error ?? dashboard?.message ?? "本地还没有生成真实工作流 eval 报告。"}
+            <p className="mt-3 text-base leading-7 text-ink-subtle">
+              评测运行写在本地 SQLite，公网实例上没有那份数据，所以这里展示随版本归档的真实结果：
+              离线契约、真实语义验收，以及两处由评测发现并已修复的缺陷。未通过的项照实列出。
             </p>
+          </header>
+
+          <section className="mt-8 border-2 border-rule-strong bg-paper-3 p-5 shadow-[var(--shadow-card)] sm:p-6">
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <h2 className="font-display text-xl font-bold">{OFFLINE_EVIDENCE.label}</h2>
+              <code className="font-mono text-[11px] text-muted">{OFFLINE_EVIDENCE.command}</code>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+              {[
+                { label: "契约测试", value: OFFLINE_EVIDENCE.contractTests },
+                { label: "合成场景", value: `${OFFLINE_EVIDENCE.scenarios}` },
+                { label: "规则通过", value: `${OFFLINE_EVIDENCE.rulesPassed}` },
+                {
+                  label: "真实调用",
+                  value: `${OFFLINE_EVIDENCE.realModelCalls + OFFLINE_EVIDENCE.realZhihuCalls}`,
+                },
+              ].map((item) => (
+                <div key={item.label} className="border border-rule bg-paper-2 px-3 py-3">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted">
+                    {item.label}
+                  </p>
+                  <p className="mt-1 text-2xl font-bold">{item.value}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-sm leading-6 text-ink-subtle">{OFFLINE_EVIDENCE.note}</p>
+          </section>
+
+          {LIVE_EVIDENCE.map((run) => (
+            <section
+              key={run.id}
+              className="mt-6 border-2 border-rule-strong bg-paper-3 p-5 shadow-[var(--shadow-card)] sm:p-6"
+            >
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <h2 className="font-display text-xl font-bold">{run.label}</h2>
+                <p className="font-mono text-[11px] text-muted">
+                  {run.calls} 次调用 · {run.wallSeconds}s · 单并发
+                </p>
+              </div>
+              <code className="mt-3 block break-all font-mono text-[11px] leading-5 text-muted">
+                {run.command}
+              </code>
+
+              <div className="mt-5 overflow-x-auto">
+                <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b-2 border-rule-strong font-mono text-[10px] uppercase tracking-[0.12em] text-muted">
+                      <th className="py-2 pr-4">用例</th>
+                      <th className="py-2 pr-4">规则</th>
+                      <th className="py-2 pr-4">语义</th>
+                      <th className="py-2 pr-4">判定</th>
+                      <th className="py-2">说明</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {run.cases.map((item) => (
+                      <tr key={item.id} className="border-b border-rule align-top">
+                        <td className="py-3 pr-4">
+                          <p className="font-mono text-[11px] text-muted">{item.id}</p>
+                          <p className="mt-1 font-medium">{item.title}</p>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <span
+                            className={
+                              "inline-flex min-h-7 items-center border px-2 font-mono text-[10px] font-semibold " +
+                              (item.rules === "pass"
+                                ? "border-success bg-success-soft text-success"
+                                : "border-danger bg-danger-soft text-danger")
+                            }
+                          >
+                            {item.rules === "pass" ? "pass" : "fail"}
+                          </span>
+                        </td>
+                        <td className="py-3 pr-4 font-mono text-[11px] text-ink-subtle">
+                          {item.semantics}
+                        </td>
+                        <td className="py-3 pr-4 font-mono text-[11px] font-semibold text-danger">
+                          {item.verdict}
+                        </td>
+                        <td className="py-3 text-ink-subtle">{item.note}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ))}
+
+          <section className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="border-2 border-rule-strong bg-paper-3 p-5 shadow-[var(--shadow-card)] sm:p-6">
+              <h2 className="font-display text-xl font-bold">评测发现并修复的缺陷</h2>
+              <ul className="mt-4 list-none space-y-3">
+                {EVAL_FIXED_DEFECTS.map((item) => (
+                  <li key={item} className="flex gap-3 text-sm leading-6 text-ink-subtle">
+                    <span aria-hidden="true" className="mt-2 block h-2 w-2 shrink-0 bg-accent" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="border-2 border-update bg-update-soft p-5 shadow-[var(--shadow-card)] sm:p-6">
+              <h2 className="font-display text-xl font-bold">已知限制（未通过项照实记录）</h2>
+              <ul className="mt-4 list-none space-y-3">
+                {EVAL_KNOWN_LIMITS.map((item) => (
+                  <li key={item} className="flex gap-3 text-sm leading-6 text-ink-subtle">
+                    <span aria-hidden="true" className="mt-2 block h-2 w-2 shrink-0 bg-update" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+
+          <section className="mt-6 border border-rule bg-paper-2 p-5">
+            <h2 className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted">
+              复现命令
+            </h2>
+            <ul className="mt-3 space-y-2">
+              {EVAL_REPRODUCE_COMMANDS.map((command) => (
+                <li key={command}>
+                  <code className="block break-all font-mono text-[11px] leading-5 text-ink-subtle">
+                    {command}
+                  </code>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <div className="mt-6 flex flex-wrap items-center gap-4">
             <button
               type="button"
               onClick={() => void load()}
-              className="mt-6 inline-flex h-11 items-center border-2 border-accent bg-accent px-5 text-sm font-semibold text-white transition-colors duration-150 hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="inline-flex h-11 items-center border-2 border-accent bg-accent px-5 text-sm font-semibold text-white transition-colors duration-150 hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
-              重新加载
+              重新加载本机报告
             </button>
-          </section>
+            <p className="text-sm text-muted">
+              {error ?? dashboard?.message ?? "本实例没有本地评测记录，以上为归档证据。"}
+            </p>
+          </div>
         </div>
       </main>
     );

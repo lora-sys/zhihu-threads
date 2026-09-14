@@ -16,7 +16,7 @@ import {
   isValidCollectedThreadSummary,
   type CollectedThreadSummary,
 } from "../lib/thread-collection";
-import { makeSqliteUserThreadStore, type UserThreadStore } from "../lib/user-thread-store";
+import { makeConfiguredUserThreadStore, type UserThreadStore } from "../lib/user-thread-store";
 import { readViewer } from "./zhihu-session";
 
 // ── Responses ───────────────────────────────────────────────────────────────
@@ -162,7 +162,7 @@ let storeInstance: Promise<UserThreadStore> | null = null;
 
 const getOrCreateStore = async (): Promise<UserThreadStore> => {
   if (!storeInstance) {
-    storeInstance = Effect.runPromise(makeSqliteUserThreadStore());
+    storeInstance = Effect.runPromise(makeConfiguredUserThreadStore());
   }
   return storeInstance;
 };

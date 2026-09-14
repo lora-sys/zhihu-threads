@@ -65,6 +65,7 @@ export const Route = createFileRoute("/")({
     ],
     links: [
       { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon.png" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
       { rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
       { rel: "alternate icon", type: "image/x-icon", href: "/favicon.ico" },
     ],
@@ -140,11 +141,22 @@ function QuestionThreadEntry() {
     threads: [],
   });
   const initialAgentQueryRef = useRef<string | null>(null);
+  /** Scroll target for the candidate list; set once per completed search. */
+  const resultsRef = useRef<HTMLElement | null>(null);
+  const scrolledSearchRef = useRef<SearchAnswerCandidatesResponse | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     setCollectedThreads(readCollectedThreadSummaries(window.localStorage));
   }, []);
+
+  useEffect(() => {
+    if (searchResult?.status !== "ok" || searchResult.candidates.length === 0) return;
+    if (scrolledSearchRef.current === searchResult) return;
+
+    scrolledSearchRef.current = searchResult;
+    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [searchResult]);
 
   useEffect(() => {
     let active = true;
@@ -652,7 +664,7 @@ function QuestionThreadEntry() {
 
         {/* Search results */}
         {(searchResult?.status === "error" || searchResult?.status === "ok") && (
-          <section className="border-t border-rule pt-10">
+          <section ref={resultsRef} className="scroll-mt-20 border-t border-rule pt-10">
             <div className="max-w-3xl">
               <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-accent">
                 SEARCH RESULTS
@@ -661,6 +673,18 @@ function QuestionThreadEntry() {
                 选择回答摘录
               </h2>
             </div>
+
+            {searchResult?.status === "ok" && searchResult.candidates.length > 0 && (
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border border-rule bg-paper-2 px-4 py-3">
+                <p className="text-sm leading-6 text-ink-subtle">
+                  已找到 {searchResult.candidates.length} 条候选：勾选你要引用的摘录，再点页面下方的
+                  「生成学习线程」。
+                </p>
+                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-accent">
+                  已选 {selectedCount} 条
+                </p>
+              </div>
+            )}
 
             {searchLoading && searchResult === null && (
               <div className="mt-6 max-w-3xl space-y-3">

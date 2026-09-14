@@ -20,6 +20,8 @@ import { Cause, Effect, Option } from "effect";
 import { createServerFn } from "@tanstack/react-start";
 
 import { describeDomainError } from "../lib/domain-error";
+import { parseZhihuAnswerUrl } from "../lib/zhihu-answer-url";
+import { parseZhihuArticleUrl } from "../lib/zhihu-article-url";
 import { makeConfiguredThreadArtifactStore } from "../lib/thread-artifact-store";
 import { makeConfiguredExcerptStore } from "../lib/excerpt-store";
 import { createQuestionLearningThread } from "../lib/thread-artifact";
@@ -287,7 +289,27 @@ export const createGenerateThreadHandler =
 
 // ── Input parser ───────────────────────────────────────────────────────────────
 
-const parseInput = (input: unknown): GenerateThreadInput => {
+/**
+ * A selected candidate is usable when it identifies a stored excerpt: every
+ * candidate needs an answer id, and the URL must be one of the two Zhihu source
+ * shapes. Column articles carry no question id, so requiring one dropped every
+ * article the user selected and produced "select at least one candidate".
+ */
+const isUsableSelectedCandidate = (candidate: {
+  readonly questionId: string;
+  readonly answerId: string;
+  readonly canonicalUrl: string;
+}): boolean => {
+  if (candidate.answerId === "") return false;
+
+  if (parseZhihuArticleUrl(candidate.canonicalUrl)._tag === "success") return true;
+
+  return (
+    parseZhihuAnswerUrl(candidate.canonicalUrl)._tag === "success" && candidate.questionId !== ""
+  );
+};
+
+export const parseGenerateThreadInput = (input: unknown): GenerateThreadInput => {
   if (typeof input !== "object" || input === null) {
     return {
       question: "",
@@ -321,7 +343,7 @@ const parseInput = (input: unknown): GenerateThreadInput => {
         canonicalUrl: typeof c.canonicalUrl === "string" ? c.canonicalUrl : "",
         excerptFingerprint: typeof c.excerptFingerprint === "string" ? c.excerptFingerprint : "",
       }))
-      .filter((c) => c.questionId !== "" && c.answerId !== "");
+      .filter(isUsableSelectedCandidate);
   }
 
   return { question, refinedQuery, learningIntent, confidence, selectedCandidates };
@@ -363,7 +385,7 @@ const createChatWrapper = async (secret: string, model: string) =>
   });
 
 export const generateThreadArtifactFn = createServerFn({ method: "POST" })
-  .validator(parseInput)
+  .validator(parseGenerateThreadInput)
   .handler(async ({ data }): Promise<GenerateThreadResponse> => {
     return createGenerateThreadHandler({
       getSecret: () => OPENAI_API_KEY,

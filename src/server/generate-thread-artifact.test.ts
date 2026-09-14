@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import { Effect } from "effect";
 
-import { createGenerateThreadHandler, type GenerateThreadDeps } from "./generate-thread-artifact";
+import {
+  createGenerateThreadHandler,
+  parseGenerateThreadInput,
+  type GenerateThreadDeps,
+} from "./generate-thread-artifact";
 import type { AnswerExcerpt } from "../lib/answer-excerpt";
 import type { ThreadArtifactStore } from "../lib/thread-artifact-store";
 import type { ExcerptStore } from "../lib/excerpt-store";
@@ -119,5 +123,68 @@ describe("generate-thread-artifact synthesis mode", () => {
     const result = await createGenerateThreadHandler(deps)(baseInput);
     expect(result.success).toBe(true);
     if (result.success) expect(result.mode).toBe("evidence_only");
+  });
+});
+
+// ── Input validation ────────────────────────────────────────────────────────
+
+describe("parseGenerateThreadInput", () => {
+  const candidate = (overrides: Record<string, unknown>) => ({
+    questionId: "42",
+    answerId: "100",
+    title: "Title",
+    authorDisplayName: "Author",
+    editTime: 1_700_000_000,
+    canonicalUrl: "https://www.zhihu.com/question/42/answer/100",
+    excerptFingerprint: "v1:5555555555555555",
+    ...overrides,
+  });
+
+  const parse = (candidates: readonly unknown[]) =>
+    parseGenerateThreadInput({
+      question: "q",
+      refinedQuery: "r",
+      learningIntent: "i",
+      confidence: 0.5,
+      selectedCandidates: candidates,
+    });
+
+  it("keeps a column article even though it has no question id", () => {
+    const parsed = parse([
+      candidate({
+        questionId: "",
+        answerId: "617256830",
+        canonicalUrl: "https://zhuanlan.zhihu.com/p/617256830",
+      }),
+    ]);
+
+    expect(parsed.selectedCandidates).toHaveLength(1);
+    expect(parsed.selectedCandidates[0]?.answerId).toBe("617256830");
+    expect(parsed.selectedCandidates[0]?.questionId).toBe("");
+  });
+
+  it("keeps a mix of articles and answers", () => {
+    const parsed = parse([
+      candidate({
+        questionId: "",
+        answerId: "617256830",
+        canonicalUrl: "https://zhuanlan.zhihu.com/p/617256830",
+      }),
+      candidate({}),
+    ]);
+
+    expect(parsed.selectedCandidates).toHaveLength(2);
+  });
+
+  it("drops an answer that lost its question id", () => {
+    expect(parse([candidate({ questionId: "" })]).selectedCandidates).toEqual([]);
+  });
+
+  it("drops candidates with a missing id or a non-Zhihu URL", () => {
+    expect(parse([candidate({ answerId: "" })]).selectedCandidates).toEqual([]);
+    expect(
+      parse([candidate({ canonicalUrl: "https://example.com/question/42/answer/100" })])
+        .selectedCandidates,
+    ).toEqual([]);
   });
 });
